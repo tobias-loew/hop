@@ -26,40 +26,39 @@ void foo(Args&&... args);
 but wait, we haven't said anything about `int` - specified as above, `foo` can be called with *any* list of parameters. So, how can we constrain `foo` to only accept argument-list containing one or more `int` arguments ? Of course, we use SFINAE
 ```
 template<typename... Ts>
-using AllInts = decltype((((void)int(std::declval<Ts>())), ...));
+using AllInts = typename std::conjunction<std::is_convertible<Ts, int>...>::type;
 
-template<typename... Args, typename = AllInts<Args...>>
-void foo(Args && ... args) {}
-
+template<typename... Ts, typename = std::enable_if_t<AllInts<Ts...>::value, void>>
+void foo(Ts&& ... ts) {}
 ```
 in the same way we can do this for `double` 
 ```
 template<typename... Ts>
-using AllDoubles = decltype((((void)double(std::declval<Ts>())), ...));
+using AllDoubles = typename std::conjunction<std::is_convertible<Ts, double>...>::type;
 
-template<typename... Args, typename = AllDoubles<Args...>>
-void foo(Args && ... args) {}
+template<typename... Ts, typename = std::enable_if_t<AllDoubles<Ts...>::value, void>>
+void foo(Ts&& ... ts) {}
 ```
 But, when we use both overload set together, we get an error that `foo` is defined twice. ((C++17; §17.1.16) A template-parameter shall not be given default arguments by two different declarations in the same scope.) cf. https://www.fluentcpp.com/2018/05/15/make-sfinae-pretty-1-what-value-sfinae-brings-to-code/
 
-One possible solution could be
+One possible solution is
 ```
 template<typename... Ts>
-using AllInts = decltype((((void)int(std::declval<Ts>())), ...), bool{});
+using AllInts = typename std::conjunction<std::is_convertible<Ts, int>...>::type;
 
-template<typename... Args, AllInts<Args...> = false>
-void foo(Args && ... args) {}
+template<typename... Ts, typename std::enable_if_t<AllInts<Ts...>::value, int> = 0>
+void foo(Ts&& ... ts) {}
 
 
 template<typename... Ts>
-using AllDoubles = decltype((((void)double(std::declval<Ts>())), ...), bool{});
+using AllDoubles = typename std::conjunction<std::is_convertible<Ts, double>...>::type;
 
-template<typename... Args, AllDoubles<Args...> = false>
-void foo(Args && ... args) {}
+template<typename... Ts, typename std::enable_if_t<AllDoubles<Ts...>::value, int> = 0>
+void foo(Ts&& ... ts) {}
 ```
-But when we now call `foo(42)` or `foo(0.5, -1.3)` we always get ambigous call errors - and thats absolutely correct: both `foo` templates can accept the argument-lists and both take their arguments as *forwarding-references* so they're both equivalent perfect matches - bang! 
+But when we now call `foo(42)` or `foo(0.5, -1.3)` we always get ambigous call errors - and thats absolutely correct: both `foo` templates accept the argument-lists (`int` is convertible to `double` and vice-versa) and both take their arguments as *forwarding-references* so they're both equivalent perfect matches - bang! 
 
-And here we are at the core of the problem: when we have multiple functions the way defined as above C++'s overload reolution won't step in to select the best match, since they're all best matches.
+And here we are at the core of the problem: when we have multiple functions defined as above C++'s overload reolution won't step in to select the best match - they're all best matches (as long as we only consider only template functions).
 
 Here __hop__ can help: with __hop__ we define only a single overload of `foo` but with a quite sophisticated SFINAE condition:
 ```
