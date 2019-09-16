@@ -144,5 +144,5 @@ void foo(Ts&& ... ts) {
 ```
 
 
-# It's a small step for man but a hop for bunnies!
+# That's one small step for man, one giant hop for bunnies!
 ![luna-bunny](/luna.jpg)
