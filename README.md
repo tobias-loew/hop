@@ -58,9 +58,10 @@ void foo(Ts&& ... ts) {}
 ```
 But when we now call `foo(42)` or `foo(0.5, -1.3)` we always get ambigous call errors - and thats absolutely correct: both `foo` templates accept the argument-lists (`int` is convertible to `double` and vice-versa) and both take their arguments as *forwarding-references* so they're both equivalent perfect matches - bang! 
 
-And here we are at the core of the problem: when we have multiple functions defined as above C++'s overload reolution won't step in to select the best match - they're all best matches (as long as we only consider only template functions).
+And here we are at the core of the problem: when we have multiple functions defined as above C++'s overload reolution won't step in to select the best match - they're all best matches (as long as we only consider only template functions). And here __hop__ can help...
 
-Here __hop__ can help: with __hop__ we define only a single overload of `foo` but with a quite sophisticated SFINAE condition:
+# Creating overload-sets with __hop__
+With __hop__ we define only a single overload of `foo` but with a quite sophisticated SFINAE condition:
 ```
 using overloads = hop::ol_list <
 	hop::ol<hop::non_empty_pack<int>>,
@@ -118,7 +119,7 @@ got a bunch of doubles
 -0.4
 12
 ```
-Alternatively, we can tag the overloads, and test for it:
+Alternatively, we can *tag* an overload, and test for it:
 ```
 struct tag_ints {};
 struct tag_doubles {};
@@ -141,6 +142,25 @@ void foo(Ts&& ... ts) {
 	}
 }
 ```
+Up to now, we can create non-empty homogenous overloads for specific types. Let's see what else we can do with __hop__.
+A single overload `hop::ol<...>` consisit of a list of types that are:
+- normal C++ types, like `int`, `vector<string>`, user-defined type, and, of course, they can be qualified. Those types are matched as if they were types of function arguments.
+- `hop::pack<T>` or `hop::non_empty_pack<T>`, but at-most one per overload. `pack ` and `non_empty_pack` exand to the appropriate (non-zero) number of `T` arguments
+- `hop::default_value<T, _Init>`, creates an argument of type `T` or nothing. Types following a `hop::default_value` must also be a `hop::default_value` (`hop::pack<hop::default_value<T>>` is for obvious reasons not supported)
+- `hop::fwd` is a place holder for a *forwarding-reference* and accepts any type
+- `hop::fwd_if<template<class> class _If>` is a *forwarding-reference* with SFINAE condition applied to the actual parameter type
+- finally, the following variations of `hop::ol<...>`:
+  ```
+	template<template<class...> class _If, class... _Ty>
+	using ol_if;
+  ```
+  and
+  ```
+	template<class _Tag, template<class...> class _If, class... _Ty>
+	using tagged_ol_if;
+  ```
+  allow to specify a additional SFINAE-condition which is applied to the complete actual parameter type pack
+
 
 
 # That's one small step for man, one giant hop for bunnies!
