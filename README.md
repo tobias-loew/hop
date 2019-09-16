@@ -145,8 +145,8 @@ void foo(Ts&& ... ts) {
 Up to now, we can create non-empty homogenous overloads for specific types. Let's see what else we can do with __hop__.
 A single overload `hop::ol<...>` consisit of a list of types that are:
 - normal C++ types, like `int`, `vector<string>`, user-defined type, and, of course, they can be qualified. Those types are matched as if they were types of function arguments.
-- `hop::pack<T>` or `hop::non_empty_pack<T>`, but at-most one per overload. `pack ` and `non_empty_pack` exand to the appropriate (non-zero) number of `T` arguments
-- `hop::default_value<T, _Init>`, creates an argument of type `T` or nothing. Types following a `hop::default_value` must also be a `hop::default_value` (`hop::pack<hop::default_value<T>>` is for obvious reasons not supported)
+- `hop::pack<T>` or `hop::non_empty_pack<T>`, but at-most one per overload. `pack ` and `non_empty_pack` exand to the appropriate (non-zero) number of `T` arguments. *Additional types (including `hop::default_value`) __after__ a `pack` are possible!*
+- `hop::default_value<T, _Init = default_init<T>>`, creates an argument of type `T` or nothing. Types following a `hop::default_value` must also be a `hop::default_value` (`hop::pack<hop::default_value<T>>` is for obvious reasons not supported)
 - `hop::fwd` is a place holder for a *forwarding-reference* and accepts any type
 - `hop::fwd_if<template<class> class _If>` is a *forwarding-reference* with SFINAE condition applied to the actual parameter type
 - finally, the following variations of `hop::ol<...>`:
@@ -161,6 +161,13 @@ A single overload `hop::ol<...>` consisit of a list of types that are:
   ```
   allow to specify a additional SFINAE-condition which is applied to the complete actual parameter type pack
 
+All overloads for a single function have to be gathered in a `hop::ol_list<...>`
+
+Let's take a look at some more examples:
+- 
+  ```hop::ol_list<
+       hop::ol<std::file&, hop::pack<int>
+  ```
 
 
 # That's one small step for man, one giant hop for bunnies!
