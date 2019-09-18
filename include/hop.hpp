@@ -14,7 +14,7 @@
 #include <boost/mp11.hpp>
 
 
-// homogenous varaiadic overload sets
+// homogeneous varaiadic overload sets
 namespace hop {
 	namespace mp11 = boost::mp11;
 
