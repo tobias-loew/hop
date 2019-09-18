@@ -1,15 +1,15 @@
 # hop
-homogenous variadic function parameters
+homogeneous variadic function parameters
 
 Copyright Tobias Loew 2019. 
 
 Distributed under the Boost Software License, Version 1.0. (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
 # What is hop
-hop is a small library the enables you to create *proper* homogenous variadic function parameters
+hop is a small library the enables you to create *proper* homogeneous variadic function parameters
 
 # What does *proper* mean
-*proper* means, that the functions you equip with hop's homogenous variadic parameters are subject to C++ overload resolution.
+*proper* means, that the functions you equip with hop's homogeneous variadic parameters are subject to C++ overload resolution.
 Let me show you an example:
 
 Suppose you want to have a function `foo` that accepts an arbitrary non-zero number of `int` arguments.
@@ -146,7 +146,7 @@ void foo(Ts&& ... ts) {
 	}
 }
 ```
-Up to now, we can create non-empty homogenous overloads for specific types. Let's see what else we can do with __hop__.
+Up to now, we can create non-empty homogeneous overloads for specific types. Let's see what else we can do with __hop__.
 A single overload `hop::ol<...>` consisit of a list of types that are:
 - normal C++ types, like `int`, `vector<string>`, user-defined type, and, of course, they can be qualified. Those types are matched as if they were types of function arguments.
 - `hop::pack<T>` or `hop::non_empty_pack<T>`, but at-most one per overload. `pack ` and `non_empty_pack` exand to the appropriate (non-zero) number of `T` arguments. *Additional types (including `hop::default_value`) __after__ a `pack` are possible!*
