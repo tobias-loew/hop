@@ -175,5 +175,5 @@ Let's take a look at some more examples:
 
 
 # That's one small step for man, a lot of hops for a bunny!
-![luna-bunny](/luna.jpg)
+![luna-bunny](/luna.png)
 `bunny(hop, hop, hop, ...);`
