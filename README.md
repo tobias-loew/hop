@@ -14,7 +14,7 @@ Let me show you an example:
 
 Suppose you want to have a function `foo` that accepts an arbitrary non-zero number of `int` arguments.
 
-The traditional solution from the pre C++11 age was to create overloads for `foo` up to a required/resonable number of arguments
+The traditional solution from the pre C++11 age was to create overloads for `foo` up to a required/reasonable number of arguments
 ```
 void foo(int n1);
 void foo(int n1, int n2);
@@ -60,9 +60,9 @@ using AllDoubles = typename std::conjunction<std::is_convertible<Ts, double>...>
 template<typename... Ts, typename std::enable_if_t<AllDoubles<Ts...>::value, int> = 0>
 void foo(Ts&& ... ts) {}
 ```
-But when we now call `foo(42)` or `foo(0.5, -1.3)` we always get ambigous call errors - and thats absolutely correct: both `foo` templates accept the argument-lists (`int` is convertible to `double` and vice-versa) and both take their arguments as *forwarding-references* so they're both equivalent perfect matches - bang! 
+But when we now call `foo(42)` or `foo(0.5, -1.3)` we always get ambigous call errors - and that's absolutely correct: both `foo` templates accept the argument-lists (`int` is convertible to `double` and vice-versa) and both take their arguments as *forwarding-references* so they're both equivalent perfect matches - bang! 
 
-And here we are at the core of the problem: when we have multiple functions defined as above C++'s overload reolution won't step in to select the best match - they're all best matches (as long as we only consider only template functions). And here __hop__ can help...
+And here we are at the core of the problem: when we have multiple functions defined as above C++'s overload resolution won't step in to select the best match - they're all best matches (as long as we only consider only template functions). And here __hop__ can help...
 
 # Creating overload-sets with __hop__
 With __hop__ we define only a single overload of `foo` but with a quite sophisticated SFINAE condition:
@@ -147,7 +147,7 @@ void foo(Ts&& ... ts) {
 }
 ```
 Up to now, we can create non-empty homogeneous overloads for specific types. Let's see what else we can do with __hop__.
-A single overload `hop::ol<...>` consisit of a list of types that are:
+A single overload `hop::ol<...>` consists of a list of types that are:
 - normal C++ types, like `int`, `vector<string>`, user-defined type, and, of course, they can be qualified. Those types are matched as if they were types of function arguments.
 - `hop::pack<T>` or `hop::non_empty_pack<T>`, but at-most one per overload. `pack ` and `non_empty_pack` exand to the appropriate (non-zero) number of `T` arguments. *Additional types (including `hop::default_value`) __after__ a `pack` are possible!*
 - `hop::default_value<T, _Init = default_init<T>>`, creates an argument of type `T` or nothing. Types following a `hop::default_value` must also be a `hop::default_value` (`hop::pack<hop::default_value<T>>` is for obvious reasons not supported)
@@ -163,7 +163,7 @@ A single overload `hop::ol<...>` consisit of a list of types that are:
 	template<class _Tag, template<class...> class _If, class... _Ty>
 	using tagged_ol_if;
   ```
-  allow to specify a additional SFINAE-condition which is applied to the complete actual parameter type pack
+  allow to specify an additional SFINAE-condition which is applied to the complete actual parameter type pack
 
 All overloads for a single function have to be gathered in a `hop::ol_list<...>`
 
