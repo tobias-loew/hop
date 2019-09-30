@@ -230,8 +230,8 @@ namespace hop {
 		template <size_t _Idx, size_t _DefaultsSpecified, class _Ty>
 		struct _single_overload;
 
-		template <size_t _Idx, size_t _DefaultsSpecified, class... _Tys, class _Tag, class _If>
-		struct _single_overload<_Idx, _DefaultsSpecified, mp11::mp_list<mp11::mp_list<_Tys...>, _Tag, _If>> {
+		template <size_t _Idx, size_t _DefaultsSpecified, class... _Tys, class _Info, class _If>
+		struct _single_overload<_Idx, _DefaultsSpecified, mp11::mp_list<mp11::mp_list<_Tys...>, _Info, _If>> {
 
 #if 0	
 			// returning the function type by cast-operator does not work with template parameter (they cannot be specified explicitly)
@@ -253,7 +253,7 @@ namespace hop {
 			//template<class... T, std::enable_if_t < /*mp11::mp_invoke_q<_If, T...>::value &&*/ (single_type_test<_Tys, T>::value && ... && true), int* > = nullptr >
 			//mp11::mp_list<std::integral_constant<size_t, _Idx>, std::integral_constant<size_t, _DefaultsSpecified>, mp11::mp_list<_Tys...>> test(typename replace_tmpl<_Tys, T>::type...) const;
 			template<class... T, std::enable_if_t<mp11::mp_invoke_q<_If, T...>::value, int* > = nullptr >
-			mp11::mp_list<_Tag, std::integral_constant<size_t, _Idx>, std::integral_constant<size_t, _DefaultsSpecified>, mp11::mp_list<_Tys...>> test(typename replace_tmpl<_Tys, T>::type...) const;
+			mp11::mp_list<_Info, std::integral_constant<size_t, _Idx>, std::integral_constant<size_t, _DefaultsSpecified>, mp11::mp_list<_Tys...>> test(typename replace_tmpl<_Tys, T>::type...) const;
 		};
 
 
@@ -389,6 +389,32 @@ namespace hop {
 		using true_t = mp11::mp_true;
 
 		struct none_tag{};
+
+
+		// information type, contains:
+		// user-tag
+		// is_from_base information
+		template<class _Tag, class _Is_from_base>
+		struct information_t {
+			using tag_t = _Tag;
+			using is_from_base_t = _Is_from_base;
+		};
+
+		using is_from_base = std::true_type;
+		using is_not_from_base = std::false_type;
+
+
+		// mp11::mp_list<mp11::mp_list<_Ty...>, impl::information_t<_Tag, std::false_type>, mp11::mp_quote<_If>>;
+		template<class _Ty>
+		using make_information_from_base_t = information_t<typename _Ty::tag_t, is_from_base>;
+
+		template<class _Ty>
+		using make_ol_from_base_t =
+			mp11::mp_append<
+			mp11::mp_list<mp11::mp_first<_Ty>, make_information_from_base_t<mp11::mp_second<_Ty>>>
+			, mp11::mp_drop_c<_Ty, 2>
+			>;
+
 	}
 
 
@@ -401,20 +427,33 @@ namespace hop {
 
 
 	// helper for inspecting current overload
-	static constexpr size_t tag_index = 0;
+	static constexpr size_t information_index = 0;
 	static constexpr size_t overload_index = 1;
 	static constexpr size_t defaults_specified_index = 2;
 	static constexpr size_t overload_type_index = 3;
 
 	template<class _Overload, class _Tag>
-	using has_tag = std::is_same<mp11::mp_at_c<_Overload, tag_index>, _Tag>;
+	using has_tag = std::is_same<typename mp11::mp_at_c<_Overload, information_index>::tag_t, _Tag>;
+	
+	template<class _Overload, class _Tag>
+	static constexpr bool has_tag_v = has_tag<_Overload, _Tag>::value;
 
+
+	template<class _Overload>
+	using is_from_base = typename mp11::mp_at_c<_Overload, information_index>::is_from_base_t;
+	
+	template<class _Overload>
+	static constexpr bool is_from_base_v = is_from_base<_Overload>::value;
+
+	
 	template<class _Overload>
 	using index = mp11::mp_at_c<_Overload, overload_index>;
 
+	
 	template<class _Overload>
 	using defaults_specified = mp11::mp_at_c<_Overload, defaults_specified_index>;
 
+	
 	template<class _Overload_Type_set, class _Overload, size_t _DefaultIdx>
 	decltype(auto) get_default_value() {
 		using _Ty = mp11::mp_first<mp11::mp_at_c<_Overload_Type_set, index<_Overload>::value>>;
@@ -429,7 +468,7 @@ namespace hop {
 	using ol_list = mp11::mp_list<_Ty...>;
 
 	template<class _Tag, template<class...> class _If, class... _Ty>
-	using tagged_ol_if = mp11::mp_list<mp11::mp_list<_Ty...>, _Tag, mp11::mp_quote<_If>>;
+	using tagged_ol_if = mp11::mp_list<mp11::mp_list<_Ty...>, impl::information_t<_Tag, std::false_type>, mp11::mp_quote<_If>>;
 
 	template<template<class...> class _If, class... _Ty>
 	using ol_if = tagged_ol_if<impl::none_tag, _If, _Ty...>;
@@ -447,8 +486,13 @@ namespace hop {
 
 
 	template<class T> struct dependent_false : std::false_type {};
-}
 
+
+
+
+	template<class _Base, class... _Ty>
+	using ol_extend = mp11::mp_append<mp11::mp_list<_Ty...>, mp11::mp_transform<impl::make_ol_from_base_t, _Base>>;
+}
 
 
 
