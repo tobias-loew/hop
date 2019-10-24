@@ -923,33 +923,6 @@ namespace hop {
                 }
             }
         }
-
-
-
-
-
-        //template<class _Overload, class _If, size_t index_specified, size_t index_expected, class... Ts>
-        //decltype(auto) get_args_if_helper(Ts&&... ts) {
-        //    using expected_types = expected_parameter_overload_type<_Overload>;
-
-        //    if constexpr (is_defaulted_param<mp_at_c<expected_types, index_expected>>::value) {
-        //        if constexpr (_If::template fn<mp_at_c<expected_types, index_expected>>::value) {
-        //            return std::tuple_cat(
-        //                std::make_tuple(impl::get_init_type_t<mp_at_c<expected_types, index_expected>>{}()),
-        //                get_args_if_helper<_Overload, _If, index_specified, index_expected + 1>(std::forward<Ts>(ts)...)
-        //            );
-        //        } else {
-        //            return get_args_if_helper<_Overload, _If, index_specified, index_expected + 1>(std::forward<Ts>(ts)...);
-        //        }
-        //    } else {
-        //        if constexpr (_If::template fn<mp_at_c<actual_parameter_overload_type<_Overload>, index_specified>>::value) {
-        //            return std::tuple_cat(std::forward_as_tuple(std::forward<T>(t)), get_args_if_helper<_Overload, _If, index_specified + 1, index_expected + 1>(std::forward<Ts>(ts)...));
-        //        } else {
-        //            return get_args_if_helper<_Overload, _If, index_specified + 1, index_expected + 1>(std::forward<Ts>(ts)...);
-        //        }
-        //    }
-        //}
-
     }
 
     template<class _Overload, class _If, class... Ts>
@@ -972,6 +945,46 @@ namespace hop {
         return get_args_if_q< _Overload, impl::has_tag<_Tag>>(std::forward<Ts>(ts)...);
     }
 
+
+
+    namespace impl {
+
+        template<class _Overload, class _If, size_t index_expected>
+        constexpr size_t get_count_if_helper() {
+            using expected_types = expected_parameter_overload_type<_Overload>;
+
+            if constexpr (mp_size<expected_types>::value > index_expected) {
+                if constexpr (_If::template fn<mp_at_c<expected_types, index_expected>>::value) {
+                    return 1 + get_count_if_helper<_Overload, _If, index_expected + 1>();
+                } else {
+                    return get_count_if_helper<_Overload, _If, index_expected + 1>();
+                }
+            } else {
+                return 0;
+            }
+        }
+    }
+
+
+    template<class _Overload, class _If>
+    constexpr size_t get_count_if_q() {
+        return impl::get_count_if_helper<_Overload, _If, 0>();
+    }
+
+    template<class _Overload, template<class> class _If>
+    constexpr size_t get_count_if() {
+        return get_count_if_q< _Overload, mp_quote<_If>>();
+    }
+
+    template<class _Overload>
+    constexpr size_t get_count() {
+        return get_count_if_q< _Overload, mp_quote<impl::true_t>>();
+    }
+
+    template<class _Overload, class _Tag>
+    constexpr size_t get_tagged_count() {
+        return get_count_if_q< _Overload, impl::has_tag<_Tag>>();
+    }
 
 
     template<class... _Ty>

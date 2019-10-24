@@ -288,6 +288,11 @@ namespace ns_test_8 {
         auto&& double_args = hop::get_tagged_args<OL, tag_double>(std::forward<Ts>(ts)...);
         std::apply(output_args, std::forward<decltype(int_args)>(int_args));
         std::apply(output_args, std::forward<decltype(double_args)>(double_args));
+
+        static constexpr size_t int_args_count = hop::get_tagged_count<OL, tag_int>();
+        std::cout << "int args count: " << int_args_count << std::endl;
+        static constexpr size_t double_args_count = hop::get_tagged_count<OL, tag_double>();
+        std::cout << "double args count: " << double_args_count << std::endl;
     }
 
 
