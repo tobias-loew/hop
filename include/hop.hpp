@@ -68,7 +68,7 @@ namespace hop {
         }
 
         template <std::size_t N, class... Ts>
-        decltype(auto) nth(Ts&& ... args) {
+        constexpr decltype(auto) nth(Ts&& ... args) {
             return detail::at<N>{}(std::forward<Ts>(args)...);
         }
     }
@@ -107,11 +107,11 @@ namespace hop {
     namespace impl {
         template<class _Ty>
         struct default_create {
-            decltype(auto) operator()() const { return _Ty{}; }
+            constexpr decltype(auto) operator()() const { return _Ty{}; }
         };
         template<class _Tag, class _Ty>
         struct default_create< tagged_ty<_Tag, _Ty>> {
-            decltype(auto) operator()() const { return _Ty{}; }
+            constexpr decltype(auto) operator()() const { return _Ty{}; }
         };
     }
 
@@ -389,7 +389,7 @@ namespace hop {
             >;
 
             template<class... T, std::enable_if_t<mp_invoke_q<_If, T...>::value, int* > = nullptr >
-            mp_list<_Info, std::integral_constant<size_t, _Idx>, _ActualTypes, DefaultedTypeInfo, mp_list<_Tys...>> test(typename unpack_replace_tmpl<_Tys, T>::type...) const;
+            constexpr mp_list<_Info, std::integral_constant<size_t, _Idx>, _ActualTypes, DefaultedTypeInfo, mp_list<_Tys...>> test(typename unpack_replace_tmpl<_Tys, T>::type...) const;
         };
 
 
@@ -420,7 +420,7 @@ namespace hop {
         template <size_t _arg_count, size_t _Idx>
         struct _expanded_overload_set<_arg_count, _Idx, mp_list<>> {
             template<class... T, std::enable_if_t<dependent_false<T...>::value, int* > = nullptr >
-            void test() const;
+            constexpr void test() const;
         };
 
 
@@ -778,7 +778,7 @@ namespace hop {
 
     // this is ONLY for C++-style default params (NOT for general_defaulted_param)
     template<class _Overload, size_t _DefaultIdx>
-    decltype(auto) get_cpp_defaulted_param() {
+    constexpr decltype(auto) get_cpp_defaulted_param() {
         using _Ty = get_overload_set_type<_Overload>;
         static constexpr auto begin_cpp_defaulted_param = mp_find_if<_Ty, impl::is_cpp_defaulted_param>::value;
 
@@ -787,7 +787,7 @@ namespace hop {
 
 
     template<class _Overload, size_t _DefaultIdx, class... Ts>
-    decltype(auto) get_value_or_default(Ts&&... ts) {
+    constexpr decltype(auto) get_value_or_default(Ts&&... ts) {
         using _Ty = get_overload_set_type<_Overload>;
         static constexpr auto begin_cpp_defaulted_param = mp_find_if<_Ty, impl::is_cpp_defaulted_param>::value;
         if constexpr (sizeof...(Ts) <= begin_cpp_defaulted_param + _DefaultIdx) {
@@ -842,7 +842,7 @@ namespace hop {
     }
 
     template<class _Overload, class _Tag, class _Or, class... Ts>
-    decltype(auto) get_value_or(_Or&& _or, Ts&&... ts) {
+    constexpr decltype(auto) get_value_or(_Or&& _or, Ts&&... ts) {
         using _Ty = actual_parameter_overload_type<_Overload>;
 
         static constexpr auto tag_index = mp_find_if_q<_Ty, impl::has_tag<_Tag>>::value;
@@ -879,7 +879,7 @@ namespace hop {
     namespace impl {
 
         template<class _Overload, class _If, size_t index_specified, size_t index_expected>
-        decltype(auto) get_args_if_helper() {
+        constexpr decltype(auto) get_args_if_helper() {
             using expected_types = expected_parameter_overload_type<_Overload>;
 
             if constexpr (mp_size<expected_types>::value > index_expected) {
@@ -903,7 +903,7 @@ namespace hop {
 
 
         template<class _Overload, class _If, size_t index_specified, size_t index_expected, class T, class... Ts>
-        decltype(auto) get_args_if_helper(T&& t, Ts&&... ts) {
+        constexpr decltype(auto) get_args_if_helper(T&& t, Ts&&... ts) {
             using expected_types = expected_parameter_overload_type<_Overload>;
 
             if constexpr (is_defaulted_param<mp_at_c<expected_types, index_expected>>::value) {
@@ -953,22 +953,22 @@ namespace hop {
     }
 
     template<class _Overload, class _If, class... Ts>
-    decltype(auto) get_args_if_q(Ts&&... ts) {
+    constexpr decltype(auto) get_args_if_q(Ts&&... ts) {
         return impl::get_args_if_helper<_Overload, _If, 0, 0>(std::forward<Ts>(ts)...);
     }
 
     template<class _Overload, template<class> class _If, class... Ts>
-    decltype(auto) get_args_if(Ts&&... ts) {
+    constexpr decltype(auto) get_args_if(Ts&&... ts) {
         return get_args_if_q< _Overload, mp_quote<_If>>(std::forward<Ts>(ts)...);
     }
 
     template<class _Overload, class... Ts>
-    decltype(auto) get_args(Ts&&... ts) {
+    constexpr decltype(auto) get_args(Ts&&... ts) {
         return get_args_if_q< _Overload, mp_quote<impl::true_t>>(std::forward<Ts>(ts)...);
     }
 
     template<class _Overload, class _Tag, class... Ts>
-    decltype(auto) get_tagged_args(Ts&&... ts) {
+    constexpr decltype(auto) get_tagged_args(Ts&&... ts) {
         return get_args_if_q< _Overload, impl::has_tag<_Tag>>(std::forward<Ts>(ts)...);
     }
 
@@ -991,7 +991,7 @@ namespace hop {
 
 
     template<class _Overload_Type_set, typename... _Tys>
-    decltype(overload_set<_Overload_Type_set, sizeof...(_Tys)>{}.test<_Tys...>(std::declval<_Tys>()...)) enable();
+    constexpr decltype(overload_set<_Overload_Type_set, sizeof...(_Tys)>{}.test<_Tys...>(std::declval<_Tys>()...)) enable();
 
 
 
