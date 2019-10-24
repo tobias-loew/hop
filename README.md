@@ -152,7 +152,7 @@ A single overload `hop::ol<...>` consists of a list of types that are:
 - `hop::pack<T>` or `hop::non_empty_pack<T>`, but at-most one per overload. `pack ` and `non_empty_pack` exand to the appropriate (non-zero) number of `T` arguments. *Additional types (including `hop::default_value`) __after__ a `pack` are possible!*
 - `hop::repeat<T, min>`, `hop::repeat<T, min, max>` at least `min` (and up to `max`) times the type `T`
 - `hop::cpp_defaulted_param<T, _Init = default_init<T>>`, creates an argument of type `T` or nothing. `hop::cpp_defaulted_param` creates a C++-style defult-param: types following a `hop::cpp_defaulted_param` must also be a `hop::cpp_defaulted_param`
-- `hop::general_defaulted_param<T, _Init = default_init<T>>`, creates an argument of type `T` or nothing. `hop::general_defaulted_param` can appear at any position of the type-list
+- `hop::general_defaulted_param<T, _Init = default_init<T>>`, creates an argument of type `T` or nothing. `hop::general_defaulted_param` can appear in any position of the type-list
 - `hop::fwd` is a place holder for a *forwarding-reference* and accepts any type
 - `hop::fwd_if<template<class> class _If>` is a *forwarding-reference* with SFINAE condition applied to the actual parameter type
 - Types can be tagged with `hop::tagged_ty<tag_type, T>` for accessing the arguments of an overload
