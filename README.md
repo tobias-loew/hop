@@ -97,15 +97,15 @@ void output_as(T&& t) {
 
 template<typename... Ts, decltype((hop::enabler<overloads, Ts...>()), 0) = 0 >
 void foo(Ts&& ... ts) {
-	using _OL = decltype(hop::enabler<overloads, Ts...>());
+	using OL = decltype(hop::enabler<overloads, Ts...>());
 
-	if constexpr (hop::index<_OL>::value == 0) {
+	if constexpr (hop::index<OL>::value == 0) {
 		std::cout << "got a bunch of ints\n";
 		(output_as<int>(ts),...);
 		std::cout << std::endl;
 	} 
 	else
-	if constexpr (hop::index<_OL>::value == 1) {
+	if constexpr (hop::index<OL>::value == 1) {
 		std::cout << "got a bunch of doubles\n";
 		(output_as<double>(ts), ...);
 		std::cout << std::endl;
@@ -135,13 +135,13 @@ using overloads = hop::ol_list <
 
 template<typename... Ts, decltype((hop::enabler<overloads, Ts...>()), 0) = 0 >
 void foo(Ts&& ... ts) {
-	using _OL = decltype(hop::enabler<overloads, Ts...>());
+	using OL = decltype(hop::enabler<overloads, Ts...>());
 
-	if constexpr (hop::has_tag<_OL, tag_ints>::value) {
+	if constexpr (hop::has_tag<OL, tag_ints>::value) {
       // ...
 	} 
 	else
-	if constexpr (hop::has_tag<_OL, tag_doubles>::value) {
+	if constexpr (hop::has_tag<OL, tag_doubles>::value) {
       // ...
 	}
 }
@@ -150,9 +150,12 @@ Up to now, we can create non-empty homogeneous overloads for specific types. Let
 A single overload `hop::ol<...>` consists of a list of types that are:
 - normal C++ types, like `int`, `vector<string>`, user-defined type, and, of course, they can be qualified. Those types are matched as if they were types of function arguments.
 - `hop::pack<T>` or `hop::non_empty_pack<T>`, but at-most one per overload. `pack ` and `non_empty_pack` exand to the appropriate (non-zero) number of `T` arguments. *Additional types (including `hop::default_value`) __after__ a `pack` are possible!*
-- `hop::default_value<T, _Init = default_init<T>>`, creates an argument of type `T` or nothing. Types following a `hop::default_value` must also be a `hop::default_value` (`hop::pack<hop::default_value<T>>` is for obvious reasons not supported)
+- `hop::repeat<T, min>`, `hop::repeat<T, min, max>` at least `min` (and up to `max`) times the type `T`
+- `hop::cpp_defaulted_param<T, _Init = default_init<T>>`, creates an argument of type `T` or nothing. `hop::cpp_defaulted_param` creates a C++-style defult-param: types following a `hop::cpp_defaulted_param` must also be a `hop::cpp_defaulted_param`
+- `hop::general_defaulted_param<T, _Init = default_init<T>>`, creates an argument of type `T` or nothing. `hop::general_defaulted_param` can appear at any position of the type-list
 - `hop::fwd` is a place holder for a *forwarding-reference* and accepts any type
 - `hop::fwd_if<template<class> class _If>` is a *forwarding-reference* with SFINAE condition applied to the actual parameter type
+- Types can be tagged with `hop::tagged_ty<tag_type, T>` for accessing the arguments of an overload
 - finally, the following variations of `hop::ol<...>`:
   ```
 	template<template<class...> class _If, class... _Ty>
@@ -167,11 +170,7 @@ A single overload `hop::ol<...>` consists of a list of types that are:
 
 All overloads for a single function have to be gathered in a `hop::ol_list<...>`
 
-Let's take a look at some more examples:
-- 
-  ```hop::ol_list<
-       hop::ol<std::file&, hop::pack<int>
-  ```
+Examples can be found in test\hop_test.cpp.
 
 
 # That's one small step for man, a lot of hops for a bunny!
