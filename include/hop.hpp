@@ -102,7 +102,7 @@ namespace hop {
     template<class _Ty>
     using non_empty_pack = repeat<_Ty, 1, infinite>;
 
-    
+
 
     namespace impl {
         template<class _Ty>
@@ -125,13 +125,14 @@ namespace hop {
 
     // template to create a forwarded parameter: _Ty has to be a quoted meta-function
     template<class _Ty>
-    struct tmpl;
+    struct tmpl_q;
 
+    // template to create a forwarded parameter: _Ty has to be a quoted meta-function
     template<template<class...> class F>
-    using tmpl_q = tmpl<mp_quote<F>>;
+    using tmpl = tmpl_q<mp_quote<F>>;
 
     // struct to create a forward-reference
-    using fwd = tmpl_q<std::type_identity_t>;
+    using fwd = tmpl<std::type_identity_t>;
 
     namespace impl {
         template<class _If>
@@ -168,13 +169,13 @@ namespace hop {
 
     // struct to create guarded forward-reference
     template<class _If>
-    using fwd_if_q = tmpl<typename impl::if_test<_If>>;
+    using fwd_if_q = tmpl_q<typename impl::if_test<_If>>;
 
     template<template<class> class _If>
     using fwd_if = fwd_if_q<mp_quote<_If>>;
 
     template<class _If>
-    using fwd_if_not_q = tmpl<typename impl::if_not_test<_If>>;
+    using fwd_if_not_q = tmpl_q<typename impl::if_not_test<_If>>;
 
     template<template<class> class _If>
     using fwd_if_not = fwd_if_not_q<mp_quote<_If>>;
@@ -290,7 +291,7 @@ namespace hop {
         struct is_tmpl : mp_false {};
 
         template<class T>
-        struct is_tmpl<tmpl<T>> : mp_true {};
+        struct is_tmpl<tmpl_q<T>> : mp_true {};
 
 
 
@@ -300,7 +301,7 @@ namespace hop {
         };
 
         template<class T, class Arg>
-        struct unpack_replace_tmpl<tmpl<T>, Arg> {
+        struct unpack_replace_tmpl<tmpl_q<T>, Arg> {
             using type = mp_invoke_q<T, Arg>;
         };
 
@@ -740,8 +741,12 @@ namespace hop {
     static constexpr size_t default_info_type_index = 3;        // the original secification of the selected overload with default-info
     static constexpr size_t actual_parameter_overload_type_index = 4;     // the type-list of the selected overload
 
+
+    template<class _Overload>
+    using get_tag_type = typename mp_at_c<_Overload, information_index>::tag_t;
+
     template<class _Overload, class _Tag>
-    using has_tag = std::is_same<typename mp_at_c<_Overload, information_index>::tag_t, _Tag>;
+    using has_tag = std::is_same<get_tag_type<_Overload>, _Tag>;
 
     template<class _Overload, class _Tag>
     static constexpr bool has_tag_v = has_tag<_Overload, _Tag>::value;
@@ -774,13 +779,19 @@ namespace hop {
     template<class _Overload>
     using expected_parameter_overload_type = mp_at_c<_Overload, expected_parameter_overload_type_index>;
 
-    
+
+
+
+    template<size_t Index, class... Ts>
+    constexpr decltype(auto) get_arg_at(Ts&&... ts) {
+        return fused::nth<Index>(std::forward<Ts>(ts)...);
+    }
 
     // this is ONLY for C++-style default params (NOT for general_defaulted_param)
     template<class _Overload, size_t _DefaultIdx>
     constexpr decltype(auto) get_cpp_defaulted_param() {
         using _Ty = get_overload_set_type<_Overload>;
-        static constexpr auto begin_cpp_defaulted_param = mp_find_if<_Ty, impl::is_cpp_defaulted_param>::value;
+        constexpr auto begin_cpp_defaulted_param = mp_find_if<_Ty, impl::is_cpp_defaulted_param>::value;
 
         return impl::get_init_type_t<mp_at_c<_Ty, begin_cpp_defaulted_param + _DefaultIdx>>{}();
     }
@@ -789,7 +800,7 @@ namespace hop {
     template<class _Overload, size_t _DefaultIdx, class... Ts>
     constexpr decltype(auto) get_value_or_default(Ts&&... ts) {
         using _Ty = get_overload_set_type<_Overload>;
-        static constexpr auto begin_cpp_defaulted_param = mp_find_if<_Ty, impl::is_cpp_defaulted_param>::value;
+        constexpr auto begin_cpp_defaulted_param = mp_find_if<_Ty, impl::is_cpp_defaulted_param>::value;
         if constexpr (sizeof...(Ts) <= begin_cpp_defaulted_param + _DefaultIdx) {
             return get_cpp_defaulted_param<_Overload, _DefaultIdx>();
         } else {
@@ -841,11 +852,11 @@ namespace hop {
 
     }
 
-    template<class _Overload, class _Tag, class _Or, class... Ts>
-    constexpr decltype(auto) get_value_or(_Or&& _or, Ts&&... ts) {
+    template<class _Overload, class _Tag, class _FnOr, class... Ts>
+    constexpr decltype(auto) get_value_or_call(_FnOr&& _fnor, Ts&&... ts) {
         using _Ty = actual_parameter_overload_type<_Overload>;
 
-        static constexpr auto tag_index = mp_find_if_q<_Ty, impl::has_tag<_Tag>>::value;
+        constexpr auto tag_index = mp_find_if_q<_Ty, impl::has_tag<_Tag>>::value;
         if constexpr (sizeof...(Ts) <= tag_index) {
             // tag_index out-of-bounds -> value not specified, check if it is a defaulted-type
 
@@ -856,10 +867,44 @@ namespace hop {
             >;
 
 
-            static constexpr auto defaulted_tag_index = mp_find_if_q<defaulted_types, impl::has_tag<_Tag>>::value;
-            static constexpr auto defaulted_end = mp_size<defaulted_types>::value;
+            constexpr auto defaulted_tag_index = mp_find_if_q<defaulted_types, impl::has_tag<_Tag>>::value;
+            constexpr auto defaulted_end = mp_size<defaulted_types>::value;
 
-//#define MSVC_COMPILATION_ERROR
+            //#define MSVC_COMPILATION_ERROR
+#ifdef MSVC_COMPILATION_ERROR
+            if constexpr (defaulted_tag_index < defaulted_end) {
+#else
+            if constexpr (defaulted_end > defaulted_tag_index) {
+#endif
+                using defaulted_type = typename mp_at_c<defaulted_types, defaulted_tag_index>::type;
+                return  impl::get_init_type_t<defaulted_type>{}();
+            } else {
+                return _fnor();
+            }
+            } else {
+            return fused::nth<tag_index>(std::forward<Ts>(ts)...);
+        }
+        }
+
+    template<class _Overload, class _Tag, class _Or, class... Ts>
+    constexpr decltype(auto) get_value_or(_Or && _or, Ts &&... ts) {
+        using _Ty = actual_parameter_overload_type<_Overload>;
+
+        constexpr auto tag_index = mp_find_if_q<_Ty, impl::has_tag<_Tag>>::value;
+        if constexpr (sizeof...(Ts) <= tag_index) {
+            // tag_index out-of-bounds -> value not specified, check if it is a defaulted-type
+
+
+            using defaulted_types = mp_copy_if<
+                mp_at_c<_Overload, default_info_type_index>,
+                impl::is_defaulted_type_t
+            >;
+
+
+            constexpr auto defaulted_tag_index = mp_find_if_q<defaulted_types, impl::has_tag<_Tag>>::value;
+            constexpr auto defaulted_end = mp_size<defaulted_types>::value;
+
+            //#define MSVC_COMPILATION_ERROR
 #ifdef MSVC_COMPILATION_ERROR
             if constexpr (defaulted_tag_index < defaulted_end) {
 #else
@@ -870,10 +915,45 @@ namespace hop {
             } else {
                 return std::forward<_Or>(_or);
             }
-        } else {
+            } else {
             return fused::nth<tag_index>(std::forward<Ts>(ts)...);
         }
-    }
+        }
+
+
+    template<class _Overload, class _Tag, class... Ts>
+    constexpr decltype(auto) get_value_or(Ts &&... ts) {
+        using _Ty = actual_parameter_overload_type<_Overload>;
+
+        constexpr auto tag_index = mp_find_if_q<_Ty, impl::has_tag<_Tag>>::value;
+        if constexpr (sizeof...(Ts) <= tag_index) {
+            // tag_index out-of-bounds -> value not specified, check if it is a defaulted-type
+
+
+            using defaulted_types = mp_copy_if<
+                mp_at_c<_Overload, default_info_type_index>,
+                impl::is_defaulted_type_t
+            >;
+
+
+            constexpr auto defaulted_tag_index = mp_find_if_q<defaulted_types, impl::has_tag<_Tag>>::value;
+            constexpr auto defaulted_end = mp_size<defaulted_types>::value;
+
+            //#define MSVC_COMPILATION_ERROR
+#ifdef MSVC_COMPILATION_ERROR
+            if constexpr (defaulted_tag_index < defaulted_end) {
+#else
+            if constexpr (defaulted_end > defaulted_tag_index) {
+#endif
+                using defaulted_type = typename mp_at_c<defaulted_types, defaulted_tag_index>::type;
+                return  impl::get_init_type_t<defaulted_type>{}();
+            } else {
+                static_assert(dependent_false<_Overload>::value, "tag not found");
+            }
+            } else {
+            return fused::nth<tag_index>(std::forward<Ts>(ts)...);
+        }
+        }
 
 
     namespace impl {
@@ -893,7 +973,7 @@ namespace hop {
                         return get_args_if_helper<_Overload, _If, index_specified, index_expected + 1>();
                     }
                 } else {
-                    static_assert(dependent_false<_Overload>);  // must be a defaulted_param
+                    static_assert(dependent_false<_Overload>::value);  // must be a defaulted_param
                     return get_args_if_helper<_Overload, _If, index_specified, index_expected + 1>();
                 }
             } else {
@@ -926,22 +1006,22 @@ namespace hop {
     }
 
     template<class _Overload, class _If, class... Ts>
-    constexpr decltype(auto) get_args_if_q(Ts&&... ts) {
+    constexpr decltype(auto) get_args_if_q(Ts &&... ts) {
         return impl::get_args_if_helper<_Overload, _If, 0, 0>(std::forward<Ts>(ts)...);
     }
 
     template<class _Overload, template<class> class _If, class... Ts>
-    constexpr decltype(auto) get_args_if(Ts&&... ts) {
+    constexpr decltype(auto) get_args_if(Ts &&... ts) {
         return get_args_if_q< _Overload, mp_quote<_If>>(std::forward<Ts>(ts)...);
     }
 
     template<class _Overload, class... Ts>
-    constexpr decltype(auto) get_args(Ts&&... ts) {
+    constexpr decltype(auto) get_args(Ts &&... ts) {
         return get_args_if_q< _Overload, mp_quote<impl::true_t>>(std::forward<Ts>(ts)...);
     }
 
     template<class _Overload, class _Tag, class... Ts>
-    constexpr decltype(auto) get_tagged_args(Ts&&... ts) {
+    constexpr decltype(auto) get_tagged_args(Ts &&... ts) {
         return get_args_if_q< _Overload, impl::has_tag<_Tag>>(std::forward<Ts>(ts)...);
     }
 
@@ -1004,11 +1084,10 @@ namespace hop {
 
 
     template<class _Overload_Type_set, typename... _Tys>
-    constexpr decltype(overload_set<_Overload_Type_set, sizeof...(_Tys)>{}.test<_Tys...>(std::declval<_Tys>()...)) enable();
+    constexpr decltype(overload_set<_Overload_Type_set, sizeof...(_Tys)>{}.template test<_Tys...>(std::declval<_Tys>()...)) enable();
 
 
 
     template<class _Base, class... _Ty>
     using ol_extend = mp_append<mp_list<_Ty...>, mp_transform<impl::make_ol_from_base_t, _Base>>;
-}
-
+    }

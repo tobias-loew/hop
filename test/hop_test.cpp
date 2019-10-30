@@ -46,8 +46,28 @@ auto printer(tag_t<std::wstring&&>) {
     return [](std::wstring const& s) {return ws_to_s(s); };
 }
 
-auto printer(tag_t<std::wstring const &&>) {
+auto printer(tag_t<std::wstring const&&>) {
     return [](std::wstring const& s) {return ws_to_s(s); };
+}
+
+template<class T>
+auto printer(tag_t<std::vector<T>>) {
+    return [](std::vector<T> const& s) {return "a"; };
+}
+
+template<class T>
+auto printer(tag_t<std::vector<T>&>) {
+    return [](std::vector<T> const& s) {return "a"; };
+}
+
+template<class T>
+auto printer(tag_t<std::vector<T>&&>) {
+    return [](std::vector<T> const& s) {return "a"; };
+}
+
+template<class T>
+auto printer(tag_t<std::vector<T> const&&>) {
+    return [](std::vector<T> const& s) {return "a"; };
 }
 
 template<class T>
@@ -90,7 +110,7 @@ namespace ns_test_1 {
         foo("Hello");
         auto hop = "hop";
         foo(hop);
-        foo(std::string{"world!"});
+        foo(std::string{ "world!" });
     }
 }
 
@@ -276,6 +296,15 @@ namespace ns_test_8 {
     struct tag_int;
     struct tag_double;
 
+    void f(int) {}
+    void f(double) {}
+    void foo_plain(int, int, int, int, int) {}
+    void foo_plain(int, int, int, int, double) {}
+    void foo_plain(int, int, int, double, double) {}
+    void foo_plain(int, int, double, double, double) {}
+    void foo_plain(int, double, double, double, double) {}
+    void foo_plain(double, double, double, double, double) {}
+
     using overloads_t = hop::ol_list <
         hop::ol<hop::pack<hop::tagged_ty<tag_int, int>>, hop::pack<hop::tagged_ty<tag_double, double>>>     // a list of ints followed by a list of doubles
     >;
@@ -297,7 +326,11 @@ namespace ns_test_8 {
 
 
     void test() {
-        foo(1, 2, 3L, 3.4, 1.f);
+        f((short)3);
+        foo_plain(1, 2, (short)3, 3.4, 1.f);
+        foo(1, 2, (short)3, 3.4, 1.f);
+        foo(1, 2, 3, 3.4);
+        foo(1, 2, (short)3, 3.4, 1.f);
     }
 }
 
@@ -349,8 +382,7 @@ namespace ns_test_11 {
     using namespace boost::mp11;
 
     template<class T1, class T2>
-    struct at_least_4_byte : mp_bool<sizeof(std::remove_cvref_t<T1>) >= 4 && sizeof(std::remove_cvref_t<T2>) >= 4>
-    {};
+    struct at_least_4_byte : mp_bool<sizeof(std::remove_cvref_t<T1>) >= 4 && sizeof(std::remove_cvref_t<T2>) >= 4> {};
 
     using overloads_t = hop::ol_list <
         hop::ol_if<at_least_4_byte, int, int>     // an int (no conversion to int)
@@ -374,22 +406,29 @@ namespace ns_test_11 {
 }
 
 namespace ns_test_12 {
-    // accessing cpp-style deaulft-params
+    // accessing cpp-style default-params (with get_value_or or get_value_or_default)
 
     struct init_hallo {
         std::string operator()() const { return "hallo defaulted world"; }
     };
 
-    struct tag_default_string;
+    struct tag_defaulted_string;
+    struct tag_defaulted_double;
 
     using overloads_t = hop::ol_list <
-        hop::ol<int, hop::cpp_defaulted_param<hop::tagged_ty<tag_default_string, std::string>, init_hallo >, hop::cpp_defaulted_param<double >>
+        hop::ol<int, hop::cpp_defaulted_param<hop::tagged_ty<tag_defaulted_string, std::string>, init_hallo >, hop::cpp_defaulted_param<hop::tagged_ty<tag_defaulted_double, double> >>
     >;
 
     template<typename... Ts, decltype((hop::enable<overloads_t, Ts...>()), 0) = 0 >
     void foo(Ts&& ... ts) {
         using OL = decltype(hop::enable<overloads_t, Ts...>());
 
+        std::cout << "get_value_or:" << std::endl;
+        auto defaulted_param_0 = hop::get_value_or<OL, tag_defaulted_string>(-1, std::forward<Ts>(ts)...);
+        auto defaulted_param_1 = hop::get_value_or<OL, tag_defaulted_double>(-1, std::forward<Ts>(ts)...);
+        std::apply(output_args, std::make_tuple(defaulted_param_0, defaulted_param_1));
+
+        std::cout << "get_value_or_default:" << std::endl;
         if constexpr (hop::defaults_specified<OL>::value == 0) {
             auto defaulted_param_0 = hop::get_value_or_default<OL, 0>(std::forward<Ts>(ts)...);
             auto defaulted_param_1 = hop::get_value_or_default<OL, 1>(std::forward<Ts>(ts)...);
@@ -503,7 +542,7 @@ namespace ns_test_15 {
 
 
     using overloads_t = hop::ol_list <
-        hop::ol<std::string, hop::tagged_ty<tag_long_arg, long>>         
+        hop::ol<std::string, hop::tagged_ty<tag_long_arg, long>>
         , hop::ol<hop::general_defaulted_param<hop::tagged_ty<tag_long_arg, long>>, double, double>
         , hop::ol<int, int, std::string>
     >;
@@ -519,12 +558,22 @@ namespace ns_test_15 {
         output_args(std::forward<decltype(long_arg)>(long_arg));
     }
 
+    class foo_class {
+    public:
+        template<typename... Ts, decltype((hop::enable<overloads_t, Ts...>()), 0) = 0 >
+        foo_class(Ts&& ... ts) {}
+    };
 
     void test() {
         foo("text", 3L);
         foo(5, 1.0, 2.0);
         foo(11.0, 12.0);
         foo(11.0, 12.0, "another text");
+
+        auto fc1 = foo_class("text", 3L);
+        auto fc2 = foo_class(5, 1.0, 2.0);
+        auto fc3 = foo_class(11.0, 12.0);
+        auto fc4 = foo_class(11.0, 12.0, "another text");
     }
 }
 
@@ -598,7 +647,7 @@ namespace ns_test_16 {
         _base.foo(1.5f, -0.4f, 12.0f);
         _base.foo(0.1, 2.5f);
         // _base.foo(42, 17.0);     // error: no matching overloaded function found
-        
+
         derived _derived;
         _derived.foo(42, 17);
         _derived.foo(-0.4, 12.0);
@@ -606,6 +655,109 @@ namespace ns_test_16 {
         // _derived.foo(0.1, 2.5f);  // error: ambigous
         // _base.foo(42, 17.0);     // error: no matching overloaded function found
         _derived.foo("hello", "extended", "world!");
+    }
+}
+
+
+namespace ns_test_17 {
+    // a single overload with a single parameter
+
+    struct vector_test {
+
+        template<class T, class _Ty>
+        static boost::mp11::mp_list<_Ty, T> test(std::vector<T>, _Ty&&);
+
+        struct no_match;
+        static boost::mp11::mp_list<no_match> test(...);
+
+        template<class T>
+        using fn = boost::mp11::mp_first<decltype(test(std::declval<T>(), std::declval<T>()))>;
+
+    };
+
+    using overloads_t = hop::ol_list <
+        hop::ol<hop::tmpl_q<vector_test>>        // one std::string
+    >;
+
+    template<typename... Ts, decltype((hop::enable<overloads_t, Ts...>()), 0) = 0 >
+    void foo(Ts&& ... ts) {
+        using OL = decltype(hop::enable<overloads_t, Ts...>());
+
+        output_args(std::forward<Ts>(ts)...);
+    }
+
+
+    void test() {
+        //        foo("Hello");
+        foo(std::vector<int>{});
+        foo(std::vector{ "world!" });
+    }
+}
+
+
+namespace ns_test_18 {
+    // invoking different base-class constructors
+    // (the same technique can be used to invoke different constructors for class members)
+
+
+    class base_class {
+    public:
+        base_class() {}
+        base_class(std::string) {}
+    };
+
+
+    class foo_class : public base_class {
+    public:
+        struct tag_ints {};
+        struct tag_string {};
+
+        using overloads_t = hop::ol_list <
+            hop::tagged_ol<tag_ints, hop::pack<int>>        // calls base's default ctor
+            , hop::tagged_ol<tag_string, std::string, double, double>        // calls base's (std::string) ctor
+        >;
+
+
+        //template<typename... Ts, decltype((hop::enable<overloads_t, Ts...>()), 0) = 0 >
+        //foo_class(tag_ints, Ts&& ... ts)
+        //    : base_class{} {
+        //    using OL = decltype(hop::enable<overloads_t, Ts...>());
+
+        //    output_args(std::forward<Ts>(ts)...);
+        //}
+
+        //template<typename... Ts, decltype((hop::enable<overloads_t, Ts...>()), 0) = 0 >
+        //foo_class(tag_string, Ts&& ... ts)
+        //    : base_class{ hop::get_arg_at<0>(std::forward<Ts>(ts)...) } {
+        //    using OL = decltype(hop::enable<overloads_t, Ts...>());
+
+        //    output_args(std::forward<Ts>(ts)...);
+        //}
+
+        template<typename... Ts, decltype((hop::enable<overloads_t, Ts...>()), 0) = 0 >
+        foo_class(Ts&& ... ts)
+            : foo_class(hop::get_tag_type<decltype(hop::enable<overloads_t, Ts...>())>{}, std::forward<Ts>(ts)...) {
+            using OL = decltype(hop::enable<overloads_t, Ts...>());
+
+            output_args(std::forward<Ts>(ts)...);
+        }
+
+    private:
+        // helper contructor to default create base_class
+        template<typename... Ts, decltype((hop::enable<overloads_t, Ts...>()), 0) = 0 >
+        foo_class(tag_ints, Ts&& ... ts)
+            : base_class{} {}
+
+        // helper contructor to create base_class with string arg
+        template<typename... Ts, decltype((hop::enable<overloads_t, Ts...>()), 0) = 0 >
+        foo_class(tag_string, Ts&& ... ts)
+            : base_class{ hop::get_arg_at<0>(std::forward<Ts>(ts)...) } {}
+    };
+
+    void test() {
+        //        foo("Hello");
+        auto foo_ints = foo_class(0, 1, 2, 3);
+        auto foo_string = foo_class("a string", 0.5, -1.e5);
     }
 }
 
@@ -632,6 +784,8 @@ int main() {
     CALL_TEST(14);
     CALL_TEST(15);
     CALL_TEST(16);
+    CALL_TEST(17);
+    CALL_TEST(18);
 
 }
 
