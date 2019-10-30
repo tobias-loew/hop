@@ -146,6 +146,35 @@ void foo(Ts&& ... ts) {
 	}
 }
 ```
+We can also tag types of an overload. This is helpful, when we want to access the argument(s) belonging to a certain type of the overload: 
+```
+struct tag_ints {};
+struct tag_double {};
+struct tag_numeric {};
+
+using overloads = hop::ol_list <
+	hop::tagged_ol<tag_ints, std::string, hop::non_empty_pack<hop::tagged_ty<tag_numeric, int>>>,
+	hop::tagged_ol<tag_doubles, std::string, hop::non_empty_pack<hop::tagged_ty<tag_numeric, double>>>
+>;
+
+template<typename... Ts, decltype((hop::enabler<overloads, Ts...>()), 0) = 0 >
+void foo(Ts&& ... ts) {
+	using OL = decltype(hop::enabler<overloads, Ts...>());
+
+	if constexpr (hop::has_tag<OL, tag_ints>::value) {
+	      auto&& numeric_args = hop::get_tagged_args<OL, tag_numeric>(std::forward<Ts>(ts)...);
+	      // numeric_args is a std::tuple containing all the int args
+	      // ...
+	} 
+	else
+	if constexpr (hop::has_tag<OL, tag_doubles>::value) {
+		auto&& numeric_args = hop::get_tagged_args<OL, tag_numeric>(std::forward<Ts>(ts)...);
+	 	// numeric_args is a std::tuple containing all the double args
+		// ...
+	}
+}
+```
+
 Up to now, we can create non-empty homogeneous overloads for specific types. Let's see what else we can do with __hop__.
 A single overload `hop::ol<...>` consists of a list of types that are:
 - normal C++ types, like `int`, `vector<string>`, user-defined type, and, of course, they can be qualified. Those types are matched as if they were types of function arguments.
@@ -155,6 +184,7 @@ A single overload `hop::ol<...>` consists of a list of types that are:
 - `hop::general_defaulted_param<T, _Init = default_init<T>>`, creates an argument of type `T` or nothing. `hop::general_defaulted_param` can appear in any position of the type-list
 - `hop::fwd` is a place holder for a *forwarding-reference* and accepts any type
 - `hop::fwd_if<template<class> class _If>` is a *forwarding-reference* with SFINAE condition applied to the actual parameter type
+- for deducing a (list of) type(s) in a template, we need to define a helper type for which `hop` provides the macro `HOP_DEFINE_TYPE_DEDUCTION`
 - Types can be tagged with `hop::tagged_ty<tag_type, T>` for accessing the arguments of an overload
 - finally, the following variations of `hop::ol<...>`:
   ```
@@ -169,6 +199,8 @@ A single overload `hop::ol<...>` consists of a list of types that are:
   allow to specify an additional SFINAE-condition which is applied to the complete actual parameter type pack
 
 All overloads for a single function have to be gathered in a `hop::ol_list<...>`
+
+Inside a function `hop` provides several templates and functions for inspecting the current overload and accessing function arguments: 
 
 Examples can be found in test\hop_test.cpp.
 
