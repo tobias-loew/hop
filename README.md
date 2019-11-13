@@ -184,7 +184,46 @@ A single overload `hop::ol<...>` consists of a list of types that are:
 - `hop::general_defaulted_param<T, _Init = default_init<T>>`, creates an argument of type `T` or nothing. `hop::general_defaulted_param` can appear in any position of the type-list
 - `hop::fwd` is a place holder for a *forwarding-reference* and accepts any type
 - `hop::fwd_if<template<class> class _If>` is a *forwarding-reference* with SFINAE condition applied to the actual parameter type
-- for deducing a (list of) type(s) in a template, we need to define a helper type for which `hop` provides the macro `HOP_DEFINE_TYPE_DEDUCTION`
+- for template type deduction there is a *global* and a *local* version:
+  - the *global* version corresponds to the usual template type deducing. Let's look a an example:
+    ```
+    template<class T1, class T2>
+    using map_alias = std::map<T1, T2>const&;
+
+    template<class T1, class T2>   // !!! class T1 is required
+    using set_alias = std::set<T2>const&;
+    
+    ...
+  
+    hop::ol<hop::deduce<map_alias>, hop::deduce<set_alias>>
+  
+    ...
+    std::map<int, std::string> my_map;
+    std::set<std::string> my_set;
+    foo(my_map, my_set);
+
+    std::set<double> another_set;
+    foo(my_map, another_set); // error
+    ``` 
+    All arguments specified with `hop::deduce` take part in the global type-deduction, thus `foo` can only be called with a map and a set, where the set-type is the same as the mapped-to-type.
+    Please note, that in the definition of the template-alias for `set_alias` the unused template type `class T1` is required, since `T1` and `T2` are deduced by matching `map_alias` and `set_alias` simultaneously.
+    
+  - in the *local* version the types are deduced intependently for each argument, for example
+    ```
+    template<class T>
+    using map_vector = std::vector<T>const&;
+
+    ...
+  
+    hop::ol<hop::pack<hop::deduce_local<map_vector>>>
+  
+    ...
+    std::vector<int> v1;
+    std::vector<double> v2;
+    std::vector<std::string> v3;
+    foo(v1, v2, v3);
+    ```
+    `foo` matches any list of `std::vector`s. Note, that this cannot be achived with global-deduction as the number of deduced-types is variable.  
 - Types can be tagged with `hop::tagged_ty<tag_type, T>` for accessing the arguments of an overload
 - finally, the following variations of `hop::ol<...>`:
   ```
