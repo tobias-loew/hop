@@ -15,6 +15,7 @@
 #include <locale>
 #include <codecvt> 
 #include <vector>
+#include <list>
 #include "..\include\hop.hpp"
 
 
@@ -665,32 +666,91 @@ namespace ns_test_17 {
     struct vector_test {
 
         template<class T, class _Ty>
-        static boost::mp11::mp_list<_Ty, T> test(std::vector<T>, _Ty&&);
+        static boost::mp11::mp_list<_Ty, boost::mp11::mp_list<T>> test(std::vector<T>, _Ty&&);
 
         struct no_match;
         static boost::mp11::mp_list<no_match> test(...);
 
         template<class T>
-        using fn = boost::mp11::mp_first<decltype(test(std::declval<T>(), std::declval<T>()))>;
+        using fn = std::is_same<T, boost::mp11::mp_first<decltype(test(std::declval<T>(), std::declval<T>()))>>;
+
+        template<class T>
+        using deduced = boost::mp11::mp_second<decltype(test(std::declval<T>(), std::declval<T>()))>;
 
     };
 
+
+    //template<template<class...> class Pattern>
+    //struct deduce {
+
+    //    template<class T, class _Ty>
+    //    static boost::mp11::mp_list<_Ty, boost::mp11::mp_list<T>> test(Pattern<T>, _Ty&&);
+
+    //    struct no_match;
+    //    static boost::mp11::mp_list<no_match> test(...);
+
+    //    template<class T>
+    //    using fn = std::is_same<T, boost::mp11::mp_first<decltype(test(std::declval<T>(), std::declval<T>()))>>;
+
+    //    template<class T>
+    //    using deduced = boost::mp11::mp_second<decltype(test(std::declval<T>(), std::declval<T>()))>;
+    //};
+
+
+    struct tag_vector;
+    struct tag_list_alloc;
+    template<class T>
+    using map_vector = std::vector<T>const&;
+    template<class T, class Alloc>
+    using map_list_alloc = std::list<T, Alloc>const&;
+
+    //template<class... T>
+    //using map_vector = std::vector<boost::mp11::mp_first<boost::mp11::mp_list<T...>>>const&;
+
     using overloads_t = hop::ol_list <
-        hop::ol<hop::tmpl_q<vector_test>>        // one std::string
+        //        hop::ol<hop::fwd_if_q<vector_test>>        // one std::string
+        hop::tagged_ol<tag_vector, hop::deduce<map_vector>>        // one std::string
+        //,hop::ol<int>        // one std::string
+        //,hop::tagged_ol<tag_list_alloc, hop::deduce_local<map_list_alloc>>        // one std::string
+        //hop::ol<hop::fwd_if_q<deduce<std::vector>>>        // one std::string
+        //,
+        //hop::ol<hop::fwd_if_q<deduce_ref<std::vector>>>        // one std::string
+        //        hop::ol<hop::tmpl_q<vector_test>>        // one std::string
     >;
 
     template<typename... Ts, decltype((hop::enable<overloads_t, Ts...>()), 0) = 0 >
     void foo(Ts&& ... ts) {
         using OL = decltype(hop::enable<overloads_t, Ts...>());
 
-        output_args(std::forward<Ts>(ts)...);
+        if constexpr (hop::has_tag_v<OL, tag_vector>) {
+            output_args(std::forward<Ts>(ts)...);
+        } else if constexpr (hop::has_tag_v<OL, tag_list_alloc>) {
+            using Actual = hop::deduced_types<OL, 0>;
+          
+  //          typename hop::debug<Actual>::type d;
+          //  typename hop::debug<boost::mp11::mp_second<Actual>>::type d;
+          //  using arg_0_t = boost::mp11::mp_first<Actual>;
+          //  arg_0_t t;
+          //  t = "";
+          ////z  typename hop::debug<arg_0_t>::type d;
+          //  int i = 42;
+//            output_args(std::forward<Ts>(ts)...);
+        }
+    //output_args(std::forward<Ts>(ts)...);
     }
 
 
+
+
+
     void test() {
-        //        foo("Hello");
+        //foo("Hello");
+//        foo(std::list<int>{});
         foo(std::vector<int>{});
-        foo(std::vector{ "world!" });
+        //foo(std::vector{ "world!" });
+        //foo(4);
+        std::vector<int> v;
+        //      foo(v);
     }
 }
 

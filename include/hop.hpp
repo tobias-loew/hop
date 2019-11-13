@@ -15,7 +15,13 @@
 #include <type_traits>
 #include <algorithm>
 #include <boost/mp11.hpp>
+#include <boost/preprocessor.hpp>
 
+#ifndef HOP_MAX_DEDUDCABLE_TYPES
+#define HOP_MAX_DEDUDCABLE_TYPES 10
+#endif
+
+#define HOP_MAX_DEDUDCABLE_TYPES_END BOOST_PP_INC(HOP_MAX_DEDUDCABLE_TYPES)
 
 // homogeneous varaiadic overload sets
 namespace hop {
@@ -132,7 +138,11 @@ namespace hop {
     using tmpl = tmpl_q<mp_quote<F>>;
 
     // struct to create a forward-reference
-    using fwd = tmpl<std::type_identity_t>;
+    namespace impl {
+        template <class _Ty>
+        using fwd_helper_t = typename std::type_identity<_Ty>::type&&;
+    }
+    using fwd = tmpl<impl::fwd_helper_t>;
 
     namespace impl {
         template<class _If>
@@ -141,10 +151,12 @@ namespace hop {
             struct invalid_type_tag;
 
         public:
+            using _if = _If;
+
             template<class T>
             using fn = mp_if<
                 typename _If::template fn<T>,
-                T,
+                T&&,
                 invalid_type_tag
             >;
 
@@ -159,10 +171,129 @@ namespace hop {
             template<class T>
             using fn = mp_if_c<
                 !_If::template fn<T>::value,
-                T,
+                T&&,
                 invalid_type_tag
             >;
 
+        };
+
+
+        template<template<class...> class Pattern_>
+        struct deducer_local {
+
+            // here we really would like to write the following test function
+            // but since Pattern_ may be an alias template instantiating it with a pack is not allowed
+            // template<template<class...> class Pattern, class... T>
+            // static mp_list<std::true_type, mp_list<T...>> test(Pattern<T...>);
+
+#define HOP_MACRO_LOCAL_DEDUCER_TEST(z, n, data)                                                                                \
+            template<template<class...> class Pattern BOOST_PP_ENUM_TRAILING_PARAMS(n, class T)>                                \
+            static mp_list<std::true_type, mp_list<BOOST_PP_ENUM_PARAMS(n, T)>> test(Pattern<BOOST_PP_ENUM_PARAMS(n, T)>);
+
+            // overloads to deduce 1 - 10 template types
+            BOOST_PP_REPEAT_FROM_TO(1, HOP_MAX_DEDUDCABLE_TYPES_END, HOP_MACRO_LOCAL_DEDUCER_TEST, _)
+
+#undef HOP_MACRO_LOCAL_DEDUCER_TEST
+
+                struct no_match;
+            template<template<class...> class Pattern>
+            static mp_list<std::false_type> test(...);
+
+            template<class T>
+            using fn = mp_first<decltype(test<Pattern_>(std::declval<T>()))>;
+
+            template<class T>
+            using deduced = mp_second<decltype(test<Pattern_>(std::declval<T>()))>;
+        };
+
+        template<int arity, template<class...> class Pattern>
+        struct pattern_helper;
+
+#define HOP_MACRO_PATTERN_HELPER(z, n, data)                     \
+        template<template<class...> class Pattern>               \
+        struct pattern_helper<n, Pattern> {                      \
+            template<BOOST_PP_ENUM_PARAMS(n, class T)>           \
+            using fn = Pattern<BOOST_PP_ENUM_PARAMS(n, T)>;      \
+        };
+
+        BOOST_PP_REPEAT_FROM_TO(1, HOP_MAX_DEDUDCABLE_TYPES_END, HOP_MACRO_PATTERN_HELPER, _)
+
+#undef HOP_MACRO_PATTERN_HELPER
+
+
+            template<template<class...> class Pattern>
+        struct deduction_pattern {
+            // this is for perfect forwarding of a single argument; deduction is done elsewhere
+            template<class T>
+            using fn = T&&;
+
+
+
+#define HOP_MACRO_ARITY_TEST(z, n, data)                                                                                             \
+            template<template<class...> class Pattern_ BOOST_PP_ENUM_TRAILING_BINARY_PARAMS(n, class T, = int BOOST_PP_INTERCEPT)>   \
+            static std::integral_constant<size_t, n> arity_test(Pattern_<BOOST_PP_ENUM_PARAMS(n, T)>);
+
+
+            BOOST_PP_REPEAT_FROM_TO(1, HOP_MAX_DEDUDCABLE_TYPES_END, HOP_MACRO_ARITY_TEST, _)
+
+#undef HOP_MACRO_ARITY_TEST
+
+                template<template<class...> class Pattern_>
+            static std::integral_constant<size_t, 0> arity_test(...);   //fault
+
+
+
+            template<class _Ty>
+            using arity = decltype(arity_test<Pattern>(std::declval<_Ty>()));
+
+            template<class _Ty>
+            using pattern = pattern_helper<arity<_Ty>::value, Pattern>;
+        };
+
+
+        template<class T>
+        struct lazy_expand {
+            using type = T;
+        };
+
+
+
+        template<class... Pattern_q>
+        struct deducer_t {
+
+            // here we really would like to write the following test function
+            // but since Pattern_ may be an alias template instantiating it with a pack is not allowed
+                       // template<template<class...> class... Pattern, class... T>
+                        // static mp_list<std::true_type, mp_list<T...>> test(Pattern<T...>...);
+
+            // overloads to deduce 0 - 10 template types
+            //template<template<class...> class... Pattern, class... _Tys>
+            //static mp_list<mp_list<_Tys...>, mp_list<>> test(Pattern<>..., _Tys&&...);
+
+            //template<template<class> class lazy_expander, class... _Tys>                                                                         
+            //static mp_list<std::true_type, mp_list<_Tys...>> test(typename lazy_expander<Pattern_q>::type::template fn<_Tys...>...);
+
+#define HOP_MACRO_DEDUCER_T_TEST(z, n, data)                                                                                                                                \
+            template<template<class> class lazy_expander BOOST_PP_ENUM_TRAILING_PARAMS(n, class T)>                                                                         \
+            static mp_list<std::true_type, mp_list<BOOST_PP_ENUM_PARAMS(n, T)>> test(typename lazy_expander<Pattern_q>::type::template fn<BOOST_PP_ENUM_PARAMS(n, T)>...);
+
+            // overloads to deduce 1 - 10 template types
+            BOOST_PP_REPEAT_FROM_TO(1, HOP_MAX_DEDUDCABLE_TYPES_END, HOP_MACRO_DEDUCER_T_TEST, _)
+
+#undef HOP_MACRO_DEDUCER_T_TEST
+
+
+                template<template<class> class lazy_expander>
+            static mp_list<std::false_type> test(...) {
+                using t = typename debug<typename lazy_expander<Pattern_q>::type>::type;
+                return{};
+            }
+
+            template<class... Tys>
+            using fn = mp_first<decltype(test<lazy_expand>(std::declval<Tys>()...))>;
+
+            template<class... Tys>
+            using deduced = mp_second<decltype(test<lazy_expand>(std::declval<Tys>()...))>;
         };
     }
 
@@ -182,7 +313,11 @@ namespace hop {
 
 
 
+    template<template<class...> class Pattern>
+    using deduce_local = fwd_if_q<impl::deducer_local<Pattern>>;
 
+    template<template<class...> class Pattern>
+    using deduce = tmpl_q< impl::deduction_pattern<Pattern>>;
 
 
 
@@ -295,6 +430,20 @@ namespace hop {
 
 
 
+        template<class T>
+        struct get_tmpl {
+            using type = T;
+        };
+
+        template<class T>
+        struct get_tmpl<tmpl_q<T>> {
+            using type = T;
+        };
+
+
+
+
+
         template<class T, class Arg>
         struct unpack_replace_tmpl {
             using type = T;
@@ -355,6 +504,48 @@ namespace hop {
         using is_defaulted_type_t = typename is_defaulted_type<_Ty>::type;
 
 
+
+
+
+
+
+
+        template<class Arg>
+        struct any_deduction_pattern {
+            template<class... Ts>
+            using fn = Arg&&;
+        };
+
+
+        template<class T, class Arg>
+        struct make_deduction_pattern {
+            using type = any_deduction_pattern<Arg>;
+        };
+
+        template<template<class...> class Pattern, class Arg>
+        struct make_deduction_pattern<tmpl_q<deduction_pattern<Pattern>>, Arg> {
+            using type = typename deduction_pattern<Pattern>:: template pattern<Arg>;
+        };
+
+        template<class _Tag, class _Ty, class Arg>
+        struct make_deduction_pattern<tagged_ty<_Tag, _Ty>, Arg> : make_deduction_pattern<_Ty, Arg> {
+        };
+
+
+
+        template<class _ActualTyList, class _FormalTyList>
+        struct deduction_helper;
+
+        template<class... _ActualTys, class... _FormalTys>
+        struct deduction_helper<mp_list<_ActualTys...>, mp_list<_FormalTys...>> {
+
+            static constexpr bool has_no_deduction_pattern = (std::is_same_v<typename make_deduction_pattern<_FormalTys, _ActualTys>::type, any_deduction_pattern<_ActualTys>> && ...);
+
+            static constexpr bool value = has_no_deduction_pattern ||
+                deducer_t<typename make_deduction_pattern<_FormalTys, _ActualTys>::type...>::template fn<_ActualTys...>::value;
+        };
+
+
         //////////////////////////////////////////////////////////////////////////////////////////////////
         // core template that generates the call-operator to test
         template <size_t _Idx, class _Ty>
@@ -389,8 +580,15 @@ namespace hop {
                 _DefaultedInfo
             >;
 
-            template<class... T, std::enable_if_t<mp_invoke_q<_If, T...>::value, int* > = nullptr >
-            constexpr mp_list<_Info, std::integral_constant<size_t, _Idx>, _ActualTypes, DefaultedTypeInfo, mp_list<_Tys...>> test(typename unpack_replace_tmpl<_Tys, T>::type...) const;
+            template<
+                class... T,
+                std::enable_if_t<
+                mp_invoke_q<_If, T...>::value
+                &&
+                deduction_helper<mp_list<T...>, mp_list<_Tys...>>::value
+                , int* > = nullptr
+            >
+                constexpr mp_list<_Info, std::integral_constant<size_t, _Idx>, _ActualTypes, DefaultedTypeInfo, mp_list<_Tys...>, mp_list<T...>> test(typename unpack_replace_tmpl<_Tys, T>::type...) const;
         };
 
 
@@ -740,6 +938,7 @@ namespace hop {
     static constexpr size_t expected_parameter_overload_type_index = 2;        // the type-list of the selected overload WITH default-params
     static constexpr size_t default_info_type_index = 3;        // the original secification of the selected overload with default-info
     static constexpr size_t actual_parameter_overload_type_index = 4;     // the type-list of the selected overload
+    static constexpr size_t deduced_parameter_overload_type_index = 5;     // the deduced types
 
 
     template<class _Overload>
@@ -779,6 +978,9 @@ namespace hop {
     template<class _Overload>
     using expected_parameter_overload_type = mp_at_c<_Overload, expected_parameter_overload_type_index>;
 
+    template<class _Overload>
+    using deduced_parameter_overload_type = mp_at_c<_Overload, deduced_parameter_overload_type_index>;
+
 
 
 
@@ -803,7 +1005,8 @@ namespace hop {
         constexpr auto begin_cpp_defaulted_param = mp_find_if<_Ty, impl::is_cpp_defaulted_param>::value;
         if constexpr (sizeof...(Ts) <= begin_cpp_defaulted_param + _DefaultIdx) {
             return get_cpp_defaulted_param<_Overload, _DefaultIdx>();
-        } else {
+        }
+        else {
             return fused::nth<begin_cpp_defaulted_param + _DefaultIdx>(std::forward<Ts>(ts)...);
         }
     }
@@ -878,13 +1081,15 @@ namespace hop {
 #endif
                 using defaulted_type = typename mp_at_c<defaulted_types, defaulted_tag_index>::type;
                 return  impl::get_init_type_t<defaulted_type>{}();
-            } else {
+            }
+            else {
                 return _fnor();
             }
-            } else {
+        }
+        else {
             return fused::nth<tag_index>(std::forward<Ts>(ts)...);
         }
-        }
+    }
 
     template<class _Overload, class _Tag, class _Or, class... Ts>
     constexpr decltype(auto) get_value_or(_Or && _or, Ts &&... ts) {
@@ -912,13 +1117,15 @@ namespace hop {
 #endif
                 using defaulted_type = typename mp_at_c<defaulted_types, defaulted_tag_index>::type;
                 return  impl::get_init_type_t<defaulted_type>{}();
-            } else {
+            }
+            else {
                 return std::forward<_Or>(_or);
             }
-            } else {
+        }
+        else {
             return fused::nth<tag_index>(std::forward<Ts>(ts)...);
         }
-        }
+    }
 
 
     template<class _Overload, class _Tag, class... Ts>
@@ -947,13 +1154,15 @@ namespace hop {
 #endif
                 using defaulted_type = typename mp_at_c<defaulted_types, defaulted_tag_index>::type;
                 return  impl::get_init_type_t<defaulted_type>{}();
-            } else {
+            }
+            else {
                 static_assert(dependent_false<_Overload>::value, "tag not found");
             }
-            } else {
+        }
+        else {
             return fused::nth<tag_index>(std::forward<Ts>(ts)...);
         }
-        }
+    }
 
 
     namespace impl {
@@ -969,14 +1178,17 @@ namespace hop {
                             std::make_tuple(impl::get_init_type_t<mp_at_c<expected_types, index_expected>>{}()),
                             get_args_if_helper<_Overload, _If, index_specified, index_expected + 1>()
                         );
-                    } else {
+                    }
+                    else {
                         return get_args_if_helper<_Overload, _If, index_specified, index_expected + 1>();
                     }
-                } else {
+                }
+                else {
                     static_assert(dependent_false<_Overload>::value);  // must be a defaulted_param
                     return get_args_if_helper<_Overload, _If, index_specified, index_expected + 1>();
                 }
-            } else {
+            }
+            else {
                 return std::tuple<>{};
             }
         }
@@ -992,13 +1204,16 @@ namespace hop {
                         std::make_tuple(impl::get_init_type_t<mp_at_c<expected_types, index_expected>>{}()),
                         get_args_if_helper<_Overload, _If, index_specified, index_expected + 1>(std::forward<T>(t), std::forward<Ts>(ts)...)
                     );
-                } else {
+                }
+                else {
                     return get_args_if_helper<_Overload, _If, index_specified, index_expected + 1>(std::forward<T>(t), std::forward<Ts>(ts)...);
                 }
-            } else {
+            }
+            else {
                 if constexpr (_If::template fn<mp_at_c<actual_parameter_overload_type<_Overload>, index_specified>>::value) {
                     return std::tuple_cat(std::forward_as_tuple(std::forward<T>(t)), get_args_if_helper<_Overload, _If, index_specified + 1, index_expected + 1>(std::forward<Ts>(ts)...));
-                } else {
+                }
+                else {
                     return get_args_if_helper<_Overload, _If, index_specified + 1, index_expected + 1>(std::forward<Ts>(ts)...);
                 }
             }
@@ -1036,10 +1251,12 @@ namespace hop {
             if constexpr (mp_size<expected_types>::value > index_expected) {
                 if constexpr (_If::template fn<mp_at_c<expected_types, index_expected>>::value) {
                     return 1 + get_count_if_helper<_Overload, _If, index_expected + 1>();
-                } else {
+                }
+                else {
                     return get_count_if_helper<_Overload, _If, index_expected + 1>();
                 }
-            } else {
+            }
+            else {
                 return 0;
             }
         }
@@ -1067,6 +1284,19 @@ namespace hop {
     }
 
 
+
+
+    template<class _Overload, size_t index>
+    using deduced = mp_at_c<deduced_parameter_overload_type<_Overload>, index>;
+
+
+    template<class _Overload, size_t index>
+    using deduced_types =
+        typename impl::get_tmpl<mp_at_c<actual_parameter_overload_type< _Overload>, index>>::type::_if::template deduced<deduced<_Overload, index>>;
+
+
+
+
     template<class... _Ty>
     using ol_list = mp_list<_Ty...>;
 
@@ -1090,4 +1320,5 @@ namespace hop {
 
     template<class _Base, class... _Ty>
     using ol_extend = mp_append<mp_list<_Ty...>, mp_transform<impl::make_ol_from_base_t, _Base>>;
-    }
+}
+
