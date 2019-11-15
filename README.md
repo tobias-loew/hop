@@ -73,7 +73,7 @@ using overloads = hop::ol_list <
 >;
 
 
-template<typename... Ts, decltype((hop::enabler<overloads, Ts...>()), 0) = 0 >
+template<typename... Ts, decltype((hop::enable<overloads, Ts...>()), 0) = 0 >
 void foo(Ts&& ... ts) {
 }
 ```
@@ -83,7 +83,7 @@ Now, we can call `foo` the same way we did for the traditional (bounded) overloa
 	foo(1.5, -0.4, 12.0);
 	foo(42, 0.5);			// error: ambigous
 ```
-Let's see what we can do inside of `foo`. The type `decltype(hop::enabler<overloads, Ts...>())` has information about the selected overload, e.g. its zero-based `index`:
+Let's see what we can do inside of `foo`. The type `decltype(hop::enable<overloads, Ts...>())` has information about the selected overload, e.g. its zero-based `index`:
 ```
 using overloads = hop::ol_list <
 	hop::ol<int, hop::non_empty_pack<int>>,
@@ -95,9 +95,9 @@ void output_as(T&& t) {
 	std::cout << (Out)t << std::endl;
 }
 
-template<typename... Ts, decltype((hop::enabler<overloads, Ts...>()), 0) = 0 >
+template<typename... Ts, decltype((hop::enable<overloads, Ts...>()), 0) = 0 >
 void foo(Ts&& ... ts) {
-	using OL = decltype(hop::enabler<overloads, Ts...>());
+	using OL = decltype(hop::enable<overloads, Ts...>());
 
 	if constexpr (hop::index<OL>::value == 0) {
 		std::cout << "got a bunch of ints\n";
@@ -133,9 +133,9 @@ using overloads = hop::ol_list <
 	hop::tagged_ol<tag_doubles, hop::non_empty_pack<double>>
 >;
 
-template<typename... Ts, decltype((hop::enabler<overloads, Ts...>()), 0) = 0 >
+template<typename... Ts, decltype((hop::enable<overloads, Ts...>()), 0) = 0 >
 void foo(Ts&& ... ts) {
-	using OL = decltype(hop::enabler<overloads, Ts...>());
+	using OL = decltype(hop::enable<overloads, Ts...>());
 
 	if constexpr (hop::has_tag<OL, tag_ints>::value) {
       // ...
@@ -157,9 +157,9 @@ using overloads = hop::ol_list <
 	hop::tagged_ol<tag_doubles, std::string, hop::non_empty_pack<hop::tagged_ty<tag_numeric, double>>>
 >;
 
-template<typename... Ts, decltype((hop::enabler<overloads, Ts...>()), 0) = 0 >
+template<typename... Ts, decltype((hop::enable<overloads, Ts...>()), 0) = 0 >
 void foo(Ts&& ... ts) {
-	using OL = decltype(hop::enabler<overloads, Ts...>());
+	using OL = decltype(hop::enable<overloads, Ts...>());
 
 	if constexpr (hop::has_tag<OL, tag_ints>::value) {
 	      auto&& numeric_args = hop::get_tagged_args<OL, tag_numeric>(std::forward<Ts>(ts)...);
