@@ -29,7 +29,9 @@ namespace hop {
 
 #ifdef _DEBUG
     template<class t>
-    struct debug;
+    struct debug_impl;
+    template<class t>
+    using debug = typename debug_impl<t>::type;
 #endif
 
     // meta and fused from http://attugit.github.io/2015/02/Accessing-nth-element-of-parameter-pack/  (http://coliru.stacked-crooked.com/a/ab5f39be452d9448)
@@ -384,6 +386,9 @@ namespace hop {
 
         template<class T>
         struct is_defaulted_param : mp_or< is_cpp_defaulted_param<T>, is_general_defaulted_param<T>> {};
+
+        template<class T>
+        struct is_not_defaulted_param : mp_not<is_defaulted_param<T>> {};
 
         template<class T>
         struct remove_defaulted_param {
@@ -1053,115 +1058,127 @@ namespace hop {
             using fn = std::is_same<_Tag, typename get_tag<T>::type>;
         };
 
-    }
+        template<class _Tag>
+        struct first_has_tag {
+            template<class T>
+            using fn = std::is_same<_Tag, typename get_tag<mp_first<T>>::type>;
+        };
 
-    template<class _Overload, class _Tag, class _FnOr, class... Ts>
+
+        struct first_is_not_defaulted_param{
+            template<class T>
+            using fn = is_not_defaulted_param<mp_first<T>>;
+        };
+
+
+
+        enum class or_behaviour {
+            is_a_value,
+            is_a_callable,
+            result_in_compilation_error
+        };
+
+        template<typename V, typename T>
+        struct append_actual_index {
+
+			using elem = mp_list< T,
+				mp_if<
+                    is_defaulted_param<T>,
+				    not_a_tag,
+				    mp_count_if_q<V, first_is_not_defaulted_param>
+				>
+			>;
+            using type = mp_push_back<V, elem>;
+        };
+        template<typename V, typename T>
+        using append_actual_index_t = typename append_actual_index<V, T>::type;
+
+        // get_value_or will always go for the first type with a matching tag
+        template<class _Overload, class _Tag, size_t tag_index, or_behaviour or_behaviour_, class _Or, class... Ts>
+        constexpr decltype(auto) get_value_or(_Or&& _or, Ts&&... ts) {
+            using expected_types = expected_parameter_overload_type<_Overload>;
+            using expected_types_with_actual_index = mp_fold< expected_types, mp_list<>, append_actual_index_t>;
+                
+
+
+//            using _Ty_with_index = mp_transform<mp_list, _Ty, mp_iota_c<mp_size<_Ty>::value>>;
+            using tag_filtered_expected_types = mp_copy_if_q<expected_types_with_actual_index, impl::first_has_tag<_Tag>>;
+
+            if constexpr (mp_size<tag_filtered_expected_types>::value <= tag_index) {
+                if constexpr (or_behaviour_ == or_behaviour::is_a_callable) {
+                    return std::apply(std::forward<_Or>(_or));
+                }
+                else if constexpr (or_behaviour_ == or_behaviour::is_a_value) {
+                    return std::forward<_Or>(_or);
+                }
+                else if constexpr (or_behaviour_ == or_behaviour::result_in_compilation_error) {
+                    static_assert(dependent_false<_Overload>::value, "tag not found");
+                }
+                else {
+                    static_assert(dependent_false<_Overload>::value, "hop internal error: missing case");
+                }
+            } else if constexpr (is_defaulted_param<mp_first<mp_at_c<tag_filtered_expected_types, tag_index>>>::value) {
+                
+                
+//                using _Ty = actual_parameter_overload_type<_Overload>;
+
+            //constexpr auto tag_index = mp_find_if_q<_Ty, impl::has_tag<_Tag>>::value;
+            //if constexpr (sizeof...(Ts) <= tag_index) {
+                // tag_index out-of-bounds -> value not specified, check if it is a defaulted-type
+
+
+                using defaulted_types = mp_copy_if<
+                    mp_at_c<_Overload, default_info_type_index>,
+                    impl::is_defaulted_type_t
+                >;
+
+
+                constexpr auto defaulted_tag_index = mp_find_if_q<defaulted_types, impl::has_tag<_Tag>>::value;
+                constexpr auto defaulted_end = mp_size<defaulted_types>::value;
+
+                //#define MSVC_COMPILATION_ERROR
+#ifdef MSVC_COMPILATION_ERROR
+                if constexpr (defaulted_tag_index < defaulted_end) {
+#else
+                if constexpr (defaulted_end > defaulted_tag_index) {
+#endif
+                    using defaulted_type = typename mp_at_c<defaulted_types, defaulted_tag_index>::type;
+                    return  impl::get_init_type_t<defaulted_type>{}();
+                }
+                else {
+                    if constexpr (or_behaviour_ == or_behaviour::is_a_callable) {
+                        return std::apply(std::forward<_Or>(_or));
+                    } else if constexpr (or_behaviour_ == or_behaviour::is_a_value) {
+                        return std::forward<_Or>(_or);
+                    } else if constexpr (or_behaviour_ == or_behaviour::result_in_compilation_error) {
+                        static_assert(dependent_false<_Overload>::value, "tag not found");
+                    } else {
+                        static_assert(dependent_false<_Overload>::value, "hop internal error: missing case");
+                    }
+                }
+            }
+            else {
+                return fused::nth<mp_second<mp_at_c<tag_filtered_expected_types, tag_index>>::value>(std::forward<Ts>(ts)...);
+            }
+            }
+        }
+    // get_value_or_call will always go for the first type with a matching tag
+    template<class _Overload, class _Tag, size_t tag_index = 0, class _FnOr, class... Ts>
     constexpr decltype(auto) get_value_or_call(_FnOr&& _fnor, Ts&&... ts) {
-        using _Ty = actual_parameter_overload_type<_Overload>;
-
-        constexpr auto tag_index = mp_find_if_q<_Ty, impl::has_tag<_Tag>>::value;
-        if constexpr (sizeof...(Ts) <= tag_index) {
-            // tag_index out-of-bounds -> value not specified, check if it is a defaulted-type
-
-
-            using defaulted_types = mp_copy_if<
-                mp_at_c<_Overload, default_info_type_index>,
-                impl::is_defaulted_type_t
-            >;
-
-
-            constexpr auto defaulted_tag_index = mp_find_if_q<defaulted_types, impl::has_tag<_Tag>>::value;
-            constexpr auto defaulted_end = mp_size<defaulted_types>::value;
-
-            //#define MSVC_COMPILATION_ERROR
-#ifdef MSVC_COMPILATION_ERROR
-            if constexpr (defaulted_tag_index < defaulted_end) {
-#else
-            if constexpr (defaulted_end > defaulted_tag_index) {
-#endif
-                using defaulted_type = typename mp_at_c<defaulted_types, defaulted_tag_index>::type;
-                return  impl::get_init_type_t<defaulted_type>{}();
-            }
-            else {
-                return _fnor();
-            }
-        }
-        else {
-            return fused::nth<tag_index>(std::forward<Ts>(ts)...);
-        }
+        return impl::get_value_or<_Overload, _Tag, tag_index, impl::or_behaviour::is_a_callable>(std::forward<_FnOr>(_fnor), std::forward<Ts>(ts)...);
     }
 
-    template<class _Overload, class _Tag, class _Or, class... Ts>
+    // get_value_or will always go for the first type with a matching tag
+    template<class _Overload, class _Tag, size_t tag_index = 0, class _Or, class... Ts>
     constexpr decltype(auto) get_value_or(_Or && _or, Ts &&... ts) {
-        using _Ty = actual_parameter_overload_type<_Overload>;
-
-        constexpr auto tag_index = mp_find_if_q<_Ty, impl::has_tag<_Tag>>::value;
-        if constexpr (sizeof...(Ts) <= tag_index) {
-            // tag_index out-of-bounds -> value not specified, check if it is a defaulted-type
-
-
-            using defaulted_types = mp_copy_if<
-                mp_at_c<_Overload, default_info_type_index>,
-                impl::is_defaulted_type_t
-            >;
-
-
-            constexpr auto defaulted_tag_index = mp_find_if_q<defaulted_types, impl::has_tag<_Tag>>::value;
-            constexpr auto defaulted_end = mp_size<defaulted_types>::value;
-
-            //#define MSVC_COMPILATION_ERROR
-#ifdef MSVC_COMPILATION_ERROR
-            if constexpr (defaulted_tag_index < defaulted_end) {
-#else
-            if constexpr (defaulted_end > defaulted_tag_index) {
-#endif
-                using defaulted_type = typename mp_at_c<defaulted_types, defaulted_tag_index>::type;
-                return  impl::get_init_type_t<defaulted_type>{}();
-            }
-            else {
-                return std::forward<_Or>(_or);
-            }
-        }
-        else {
-            return fused::nth<tag_index>(std::forward<Ts>(ts)...);
-        }
+        return impl::get_value_or<_Overload, _Tag, tag_index, impl::or_behaviour::is_a_value>(std::forward<_Or>(_or), std::forward<Ts>(ts)...);
     }
 
 
-    template<class _Overload, class _Tag, class... Ts>
-    constexpr decltype(auto) get_value_or(Ts &&... ts) {
-        using _Ty = actual_parameter_overload_type<_Overload>;
-
-        constexpr auto tag_index = mp_find_if_q<_Ty, impl::has_tag<_Tag>>::value;
-        if constexpr (sizeof...(Ts) <= tag_index) {
-            // tag_index out-of-bounds -> value not specified, check if it is a defaulted-type
-
-
-            using defaulted_types = mp_copy_if<
-                mp_at_c<_Overload, default_info_type_index>,
-                impl::is_defaulted_type_t
-            >;
-
-
-            constexpr auto defaulted_tag_index = mp_find_if_q<defaulted_types, impl::has_tag<_Tag>>::value;
-            constexpr auto defaulted_end = mp_size<defaulted_types>::value;
-
-            //#define MSVC_COMPILATION_ERROR
-#ifdef MSVC_COMPILATION_ERROR
-            if constexpr (defaulted_tag_index < defaulted_end) {
-#else
-            if constexpr (defaulted_end > defaulted_tag_index) {
-#endif
-                using defaulted_type = typename mp_at_c<defaulted_types, defaulted_tag_index>::type;
-                return  impl::get_init_type_t<defaulted_type>{}();
-            }
-            else {
-                static_assert(dependent_false<_Overload>::value, "tag not found");
-            }
-        }
-        else {
-            return fused::nth<tag_index>(std::forward<Ts>(ts)...);
-        }
+    // get_value will always go for the first type with a matching tag
+    template<class _Overload, class _Tag, size_t tag_index = 0, class... Ts>
+    constexpr decltype(auto) get_value(Ts &&... ts) {
+        return impl::get_value_or<_Overload, _Tag, tag_index, impl::or_behaviour::result_in_compilation_error>(0, std::forward<Ts>(ts)...);
     }
 
 
