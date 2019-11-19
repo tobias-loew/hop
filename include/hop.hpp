@@ -147,6 +147,12 @@ namespace hop {
     using fwd = tmpl<impl::fwd_helper_t>;
 
     namespace impl {
+        template<class... _Ty>
+        using true_t = mp_true;
+
+        struct none_tag {};
+
+
         template<class _If>
         struct if_test {
         private:
@@ -302,13 +308,13 @@ namespace hop {
 
     // struct to create guarded forward-reference
     template<class _If>
-    using fwd_if_q = tmpl_q<typename impl::if_test<_If>>;
+    using fwd_if_q = tmpl_q<impl::if_test<_If>>;
 
     template<template<class> class _If>
     using fwd_if = fwd_if_q<mp_quote<_If>>;
 
     template<class _If>
-    using fwd_if_not_q = tmpl_q<typename impl::if_not_test<_If>>;
+    using fwd_if_not_q = tmpl_q<impl::if_not_test<_If>>;
 
     template<template<class> class _If>
     using fwd_if_not = fwd_if_not_q<mp_quote<_If>>;
@@ -321,6 +327,48 @@ namespace hop {
     template<template<class...> class Pattern>
     using deduce = tmpl_q< impl::deduction_pattern<Pattern>>;
 
+    namespace impl {
+        template<class F, F & f>
+        struct adapter {
+            template<class... Ts>
+            static decltype(f(std::declval<Ts>()...)) forward(Ts&&... ts) {
+                return f(std::forward<Ts>(ts)...);
+            }
+
+        };
+
+        template<class T>
+        struct adapter_test {
+
+            template<class... Ts>
+            static true_t<decltype(T::forward(std::declval<Ts>()...))> test(Ts&&...);
+
+            static std::false_type test(...);
+
+            template<class... Ts>
+            using fn = decltype(test(std::declval<Ts>()...));
+
+        };
+    }
+
+    //template<class Adapter>
+    //struct adapted {
+    //    using adapter_type = Adapter;
+    //};
+
+
+    //template<class F, F & f>
+    //struct adapt {
+    //    template<class... _Tys, decltype(f(std::declval<_Tys>()...), 0) = 0 >
+    //    static std::true_type test(_Tys&&...);
+
+    //    static std::false_type test(...);
+
+    //    template<class... Ts>
+    //    static decltype(f(std::declval<Ts>()...)) forward(Ts&&... ts) {
+    //        return f(std::forward<Ts>(ts)...);
+    //    }
+    //};
 
 
     namespace impl {
@@ -465,6 +513,11 @@ namespace hop {
             using type = typename unpack_replace_tmpl<_Ty, Arg>::type;
         };
 
+
+        //template<class T, class Arg>
+        //struct unpack_replace_tmpl<adapted<T>, Arg> {
+        //    using type = Arg&&;
+        //};
 
 
 
@@ -832,7 +885,7 @@ namespace hop {
         };
 
         // _expand_overload_set expands a single overload-entry (_TyIf) into (at least) all valid param-sets
-        template <size_t _arg_count, class _TyIf>
+        template <size_t _arg_count, class _TyIf, class _Ty_for_pattern_matching>
         struct _expand_overload_set {
             using _Ty = mp_first< _TyIf>;	// split from global enable_if condition etc.
 
@@ -874,6 +927,12 @@ namespace hop {
                 >;
         };
 
+        //// _expand_overload_set expands a single overload-entry (_TyIf) into (at least) all valid param-sets
+        //template <size_t _arg_count, class _TyIf, class Adapter>
+        //struct _expand_overload_set<_arg_count, _TyIf, mp_list<adapted<Adapter>>> {
+        //    using _Ty_ = debug< Adapter>;	// split from global enable_if condition etc.
+
+        //};
 
 
         // _overload_set expands all overload-entries (_Types) into (at least) all valid param-sets
@@ -886,8 +945,8 @@ namespace hop {
 
         template <size_t _arg_count, size_t... _Indices, class... _Types>
         struct _overload_set<_arg_count, std::index_sequence<_Indices...>, _Types...>
-            : _expanded_overload_set<_arg_count, _Indices, typename _expand_overload_set<_arg_count, _Types>::type>... {
-            using _expanded_overload_set<_arg_count, _Indices, typename _expand_overload_set<_arg_count, _Types>::type>::test...;
+            : _expanded_overload_set<_arg_count, _Indices, typename _expand_overload_set<_arg_count, _Types, mp_first<_Types>>::type>... {
+            using _expanded_overload_set<_arg_count, _Indices, typename _expand_overload_set<_arg_count, _Types, mp_first<_Types>>::type>::test...;
         };
 
 
@@ -895,20 +954,19 @@ namespace hop {
 
 
 
-        template<class... _Ty>
-        using true_t = mp_true;
-
-        struct none_tag {};
 
 
         // information type, contains:
         // user-tag
         // is_from_base information
-        template<class _OL, class _Tag, class _Is_from_base>
+        struct not_an_adapter;
+
+        template<class _OL, class _Tag, class _Is_from_base, class _Adapter>
         struct information_t {
             using overload_t = _OL;
             using tag_t = _Tag;
             using is_from_base_t = _Is_from_base;
+            using adapter_t = _Adapter;
         };
 
         using is_from_base = mp_true;
@@ -917,7 +975,12 @@ namespace hop {
 
         // mp_list<mp_list<_Ty...>, impl::information_t<_Tag, mp_false>, mp_quote<_If>>;
         template<class _Ty>
-        using make_information_from_base_t = information_t<typename _Ty::overload_t, typename _Ty::tag_t, is_from_base>;
+        using make_information_from_base_t = information_t<
+            typename _Ty::overload_t, 
+            typename _Ty::tag_t, 
+            is_from_base, 
+            typename _Ty::adapter_t
+        >;
 
         template<class _Ty>
         using make_ol_from_base_t =
@@ -960,10 +1023,21 @@ namespace hop {
     using is_from_base = typename mp_at_c<_Overload, information_index>::is_from_base_t;
 
     template<class _Overload>
-    using get_overload_set_type = typename mp_at_c<_Overload, information_index>::overload_t;
+    static constexpr bool is_from_base_v = is_from_base<_Overload>::value;
 
     template<class _Overload>
-    static constexpr bool is_from_base_v = is_from_base<_Overload>::value;
+    using is_adapted = mp_not<std::is_same<typename mp_at_c<_Overload, information_index>::adapter_t, impl::not_an_adapter>>;
+
+    template<class _Overload>
+    static constexpr bool is_adapted_v = is_adapted<_Overload>::value;
+
+    template<class _Overload, class... _Ts>
+    decltype(auto) forward_adapted(_Ts&&... ts) {
+        return mp_at_c<_Overload, information_index>::adapter_t::forward(std::forward<_Ts>(ts)...);
+    }
+
+    template<class _Overload>
+    using get_overload_set_type = typename mp_at_c<_Overload, information_index>::overload_t;
 
 
     template<class _Overload>
@@ -1005,7 +1079,7 @@ namespace hop {
 
 
     template<class _Overload, size_t _DefaultIdx, class... Ts>
-    constexpr decltype(auto) get_value_or_default(Ts&&... ts) {
+    constexpr decltype(auto) get_indexed_defaulted(Ts&&... ts) {
         using _Ty = get_overload_set_type<_Overload>;
         constexpr auto begin_cpp_defaulted_param = mp_find_if<_Ty, impl::is_cpp_defaulted_param>::value;
         if constexpr (sizeof...(Ts) <= begin_cpp_defaulted_param + _DefaultIdx) {
@@ -1018,6 +1092,7 @@ namespace hop {
 
     namespace impl {
         struct not_a_tag;
+
         template<class T>
         struct get_tag {
             using type = not_a_tag;
@@ -1044,7 +1119,7 @@ namespace hop {
         };
 
 
-        // specialization used in get_value_or
+        // specialization used in get_arg_or
         template<class _Ty, bool _specified, bool _general>
         struct get_tag<defaulted_type_t<_Ty, _specified, _general>> {
             using type = typename get_tag<_Ty>::type;
@@ -1093,9 +1168,9 @@ namespace hop {
         template<typename V, typename T>
         using append_actual_index_t = typename append_actual_index<V, T>::type;
 
-        // get_value_or will always go for the first type with a matching tag
+        // get_arg_or will always go for the first type with a matching tag
         template<class _Overload, class _Tag, size_t tag_index, or_behaviour or_behaviour_, class _Or, class... Ts>
-        constexpr decltype(auto) get_value_or(_Or&& _or, Ts&&... ts) {
+        constexpr decltype(auto) get_arg_or(_Or&& _or, Ts&&... ts) {
             using expected_types = expected_parameter_overload_type<_Overload>;
             using expected_types_with_actual_index = mp_fold< expected_types, mp_list<>, append_actual_index_t>;
                 
@@ -1162,23 +1237,23 @@ namespace hop {
             }
             }
         }
-    // get_value_or_call will always go for the first type with a matching tag
+    // get_arg_or_call will always go for the first type with a matching tag
     template<class _Overload, class _Tag, size_t tag_index = 0, class _FnOr, class... Ts>
-    constexpr decltype(auto) get_value_or_call(_FnOr&& _fnor, Ts&&... ts) {
-        return impl::get_value_or<_Overload, _Tag, tag_index, impl::or_behaviour::is_a_callable>(std::forward<_FnOr>(_fnor), std::forward<Ts>(ts)...);
+    constexpr decltype(auto) get_arg_or_call(_FnOr&& _fnor, Ts&&... ts) {
+        return impl::get_arg_or<_Overload, _Tag, tag_index, impl::or_behaviour::is_a_callable>(std::forward<_FnOr>(_fnor), std::forward<Ts>(ts)...);
     }
 
-    // get_value_or will always go for the first type with a matching tag
+    // get_arg_or will always go for the first type with a matching tag
     template<class _Overload, class _Tag, size_t tag_index = 0, class _Or, class... Ts>
-    constexpr decltype(auto) get_value_or(_Or && _or, Ts &&... ts) {
-        return impl::get_value_or<_Overload, _Tag, tag_index, impl::or_behaviour::is_a_value>(std::forward<_Or>(_or), std::forward<Ts>(ts)...);
+    constexpr decltype(auto) get_arg_or(_Or && _or, Ts &&... ts) {
+        return impl::get_arg_or<_Overload, _Tag, tag_index, impl::or_behaviour::is_a_value>(std::forward<_Or>(_or), std::forward<Ts>(ts)...);
     }
 
 
-    // get_value will always go for the first type with a matching tag
+    // get_arg will always go for the first type with a matching tag
     template<class _Overload, class _Tag, size_t tag_index = 0, class... Ts>
-    constexpr decltype(auto) get_value(Ts &&... ts) {
-        return impl::get_value_or<_Overload, _Tag, tag_index, impl::or_behaviour::result_in_compilation_error>(0, std::forward<Ts>(ts)...);
+    constexpr decltype(auto) get_arg(Ts &&... ts) {
+        return impl::get_arg_or<_Overload, _Tag, tag_index, impl::or_behaviour::result_in_compilation_error>(0, std::forward<Ts>(ts)...);
     }
 
 
@@ -1317,8 +1392,12 @@ namespace hop {
     template<class... _Ty>
     using ol_list = mp_list<_Ty...>;
 
+    template<class _Tag, class _If_q, class _Tys, class _Adapter = impl::not_an_adapter>
+    using packed_ol = mp_list<_Tys, impl::information_t<_Tys, _Tag, mp_false, _Adapter>, _If_q>;
+
+
     template<class _Tag, template<class...> class _If, class... _Ty>
-    using tagged_ol_if = mp_list<mp_list<_Ty...>, impl::information_t<mp_list<_Ty...>, _Tag, mp_false>, mp_quote<_If>>;
+    using tagged_ol_if = packed_ol<_Tag, mp_quote<_If>, mp_list<_Ty...>>;
 
     template<template<class...> class _If, class... _Ty>
     using ol_if = tagged_ol_if<impl::none_tag, _If, _Ty...>;
@@ -1329,6 +1408,24 @@ namespace hop {
     template<class... _Ty>
     using ol = ol_if<impl::true_t, _Ty...>;
 
+    template<class _Tag, class _If_q, class... _Ty>
+    using tagged_ol_if_q = packed_ol<_Tag, _If_q, mp_list<_Ty...>>;
+
+
+
+    template<class _Tag, class Adapter>
+    using tagged_adapted = packed_ol<_Tag, impl::adapter_test<Adapter>, mp_list<pack<fwd>>, Adapter>;
+
+    template<class Adapter>
+    using adapted = tagged_adapted<impl::none_tag, Adapter>;
+
+
+    template<class F, F & f>
+    using adapt = adapted<impl::adapter<F, f>>;
+
+    template<class _Tag, class F, F & f>
+    using tagged_adapt = tagged_adapted<_Tag, impl::adapter<F, f>>;
+
 
     template<class _Overload_Type_set, typename... _Tys>
     constexpr decltype(overload_set<_Overload_Type_set, sizeof...(_Tys)>{}.template test<_Tys...>(std::declval<_Tys>()...)) enable();
@@ -1337,5 +1434,7 @@ namespace hop {
 
     template<class _Base, class... _Ty>
     using ol_extend = mp_append<mp_list<_Ty...>, mp_transform<impl::make_ol_from_base_t, _Base>>;
+
+
 }
 

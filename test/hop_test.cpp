@@ -16,6 +16,8 @@
 #include <codecvt> 
 #include <vector>
 #include <list>
+#include <set>
+#include <map>
 #include "..\include\hop.hpp"
 
 
@@ -407,7 +409,7 @@ namespace ns_test_11 {
 }
 
 namespace ns_test_12 {
-    // accessing cpp-style default-params (with get_value_or or get_value_or_default)
+    // accessing cpp-style default-params (with get_arg_or or get_indexed_defaulted)
 
     struct init_hallo {
         std::string operator()() const { return "hallo defaulted world"; }
@@ -424,23 +426,23 @@ namespace ns_test_12 {
     void foo(Ts&& ... ts) {
         using OL = decltype(hop::enable<overloads_t, Ts...>());
 
-        std::cout << "get_value_or:" << std::endl;
-        auto defaulted_param_0 = hop::get_value_or<OL, tag_defaulted_string>(-1, std::forward<Ts>(ts)...);
-        auto defaulted_param_1 = hop::get_value_or<OL, tag_defaulted_double>(-1, std::forward<Ts>(ts)...);
+        std::cout << "get_arg_or:" << std::endl;
+        auto defaulted_param_0 = hop::get_arg_or<OL, tag_defaulted_string>(-1, std::forward<Ts>(ts)...);
+        auto defaulted_param_1 = hop::get_arg_or<OL, tag_defaulted_double>(-1, std::forward<Ts>(ts)...);
         std::apply(output_args, std::make_tuple(defaulted_param_0, defaulted_param_1));
 
-        std::cout << "get_value_or_default:" << std::endl;
+        std::cout << "get_indexed_defaulted:" << std::endl;
         if constexpr (hop::defaults_specified<OL>::value == 0) {
-            auto defaulted_param_0 = hop::get_value_or_default<OL, 0>(std::forward<Ts>(ts)...);
-            auto defaulted_param_1 = hop::get_value_or_default<OL, 1>(std::forward<Ts>(ts)...);
+            auto defaulted_param_0 = hop::get_indexed_defaulted<OL, 0>(std::forward<Ts>(ts)...);
+            auto defaulted_param_1 = hop::get_indexed_defaulted<OL, 1>(std::forward<Ts>(ts)...);
             std::apply(output_args, std::make_tuple(defaulted_param_0, defaulted_param_1));
         } else if constexpr (hop::defaults_specified<OL>::value == 1) {
-            auto defaulted_param_0 = hop::get_value_or_default<OL, 0>(std::forward<Ts>(ts)...);
-            auto defaulted_param_1 = hop::get_value_or_default<OL, 1>(std::forward<Ts>(ts)...);
+            auto defaulted_param_0 = hop::get_indexed_defaulted<OL, 0>(std::forward<Ts>(ts)...);
+            auto defaulted_param_1 = hop::get_indexed_defaulted<OL, 1>(std::forward<Ts>(ts)...);
             std::apply(output_args, std::make_tuple(defaulted_param_0, defaulted_param_1));
         } else if constexpr (hop::defaults_specified<OL>::value == 2) {
-            auto defaulted_param_0 = hop::get_value_or_default<OL, 0>(std::forward<Ts>(ts)...);
-            auto defaulted_param_1 = hop::get_value_or_default<OL, 1>(std::forward<Ts>(ts)...);
+            auto defaulted_param_0 = hop::get_indexed_defaulted<OL, 0>(std::forward<Ts>(ts)...);
+            auto defaulted_param_1 = hop::get_indexed_defaulted<OL, 1>(std::forward<Ts>(ts)...);
             std::apply(output_args, std::make_tuple(defaulted_param_0, defaulted_param_1));
         } else {
             static_assert(hop::dependent_false<OL>::value, "Ooops!");
@@ -536,7 +538,7 @@ namespace ns_test_14 {
 
 
 namespace ns_test_15 {
-    // get_value_or
+    // get_arg_or
 
     struct tag_long_arg;
 
@@ -554,8 +556,8 @@ namespace ns_test_15 {
 
         std::apply(output_args, hop::get_args<OL>(std::forward<Ts>(ts)...));
 
-        // hop::get_value_or returns the specified tagged-parameter (or its default-value), if there is no parameter with the specified tag, then the 'or' value is returned
-        auto&& long_arg = hop::get_value_or<OL, tag_long_arg>(42.0, std::forward<Ts>(ts)...);
+        // hop::get_arg_or returns the specified tagged-parameter (or its default-value), if there is no parameter with the specified tag, then the 'or' value is returned
+        auto&& long_arg = hop::get_arg_or<OL, tag_long_arg>(42.0, std::forward<Ts>(ts)...);
         output_args(std::forward<decltype(long_arg)>(long_arg));
     }
 
@@ -822,6 +824,150 @@ namespace ns_test_18 {
 }
 
 
+namespace ns_test_19 {
+    // template type argument deduction
+
+
+    struct vector_test {
+
+        template<class T, class _Ty>
+        static boost::mp11::mp_list<_Ty, boost::mp11::mp_list<T>> test(std::vector<T>, _Ty&&);
+
+        struct no_match;
+        static boost::mp11::mp_list<no_match> test(...);
+
+        template<class T>
+        using fn = std::is_same<T, boost::mp11::mp_first<decltype(test(std::declval<T>(), std::declval<T>()))>>;
+
+        template<class T>
+        using deduced = boost::mp11::mp_second<decltype(test(std::declval<T>(), std::declval<T>()))>;
+
+    };
+
+
+    struct tag_vector;
+    struct tag_list_alloc;
+
+    template<class T1, class T2>
+    using map_alias = std::map<T1, T2>const&;
+
+    template<class T1, class T2>
+    using set_alias = std::set<T2>const&;
+
+    //template<class T1, class T2, class Alloc2>
+    //using map_list_alloc = std::list<T2, Alloc>const&;
+
+    //template<class T>
+    //using map_vector1 = std::vector<T>const&;
+
+
+    using overloads_t = hop::ol_list <
+        hop::ol<hop::deduce<map_alias>, hop::deduce<set_alias>>
+        // one std::string
+        //        hop::ol<hop::fwd_if_q<vector_test>>        // one std::string
+//        hop::tagged_ol<tag_vector, std::string, hop::deduce<map_vector>, hop::deduce<map_list_alloc>>        // one std::string
+//        , hop::tagged_ol<tag_vector, std::string, hop::deduce<map_list_alloc>>        // one std::string
+//        , hop::tagged_ol<tag_vector, hop::deduce<map_vector1>>        // one std::string
+, hop::tagged_ol<tag_vector, std::string>        // one std::string
+//,hop::ol<int>        // one std::string
+//,hop::tagged_ol<tag_list_alloc, hop::deduce_local<map_list_alloc>>        // one std::string
+//hop::ol<hop::fwd_if_q<deduce<std::vector>>>        // one std::string
+//,
+//hop::ol<hop::fwd_if_q<deduce_ref<std::vector>>>        // one std::string
+//        hop::ol<hop::tmpl_q<vector_test>>        // one std::string
+    >;
+
+    template<typename... Ts, decltype((hop::enable<overloads_t, Ts...>()), 0) = 0 >
+    void foo(Ts&& ... ts) {
+        using OL = decltype(hop::enable<overloads_t, Ts...>());
+
+        if constexpr (hop::has_tag_v<OL, tag_vector>) {
+            //output_args(std::forward<Ts>(ts)...);
+        } else if constexpr (hop::has_tag_v<OL, tag_list_alloc>) {
+            //            using Actual = hop::deduced_types<OL, 0>;
+
+              //          typename hop::debug<Actual>::type d;
+                      //  typename hop::debug<boost::mp11::mp_second<Actual>>::type d;
+                      //  using arg_0_t = boost::mp11::mp_first<Actual>;
+                      //  arg_0_t t;
+                      //  t = "";
+                      ////z  typename hop::debug<arg_0_t>::type d;
+                      //  int i = 42;
+            //            output_args(std::forward<Ts>(ts)...);
+        }
+        //output_args(std::forward<Ts>(ts)...);
+    }
+
+
+
+
+
+    void test() {
+        foo("Hello");
+        //        foo(std::list<int>{});
+         //       foo(std::string{}, std::list<int>{});
+        foo(std::map<int, std::string>{}, std::set<std::string>{});
+        //foo(std::vector<int>{}/*, std::list<int>{}*/);
+        //foo(std::vector{ "world!" });
+        //foo(4);
+        //std::vector<int> v;
+        //      foo(v);
+        //foo(std::vector<int>{}, std::list<float>{});
+    }
+}
+
+
+namespace ns_test_20 {
+    // adapting existing functions
+
+
+    void bar(int n, std::string s) {
+        std::cout << "bar called: " << std::endl;
+        output_args(n, s);
+    }
+
+    template<class T>
+    void qux(T t, double d1, double d2) {
+        std::cout << "qux called: " << std::endl;
+        output_args(t, d1, d2);
+    }
+
+    struct adapt_qux {
+
+        template<class... Ts>
+        static decltype(qux(std::declval<Ts>()...)) forward(Ts&&... ts) {
+            return qux(std::forward<Ts>(ts)...);
+        }
+
+    };
+
+    using overloads_t = hop::ol_list <
+        hop::adapt<decltype(bar), bar>
+        , hop::adapted<adapt_qux>
+    >;
+
+    template<typename... Ts, decltype((hop::enable<overloads_t, Ts...>()), 0) = 0 >
+    void foo(Ts&& ... ts) {
+        using OL = decltype(hop::enable<overloads_t, Ts...>());
+        if constexpr (hop::is_adapted_v<OL>) {
+            return hop::forward_adapted<OL>(std::forward<Ts>(ts)...);
+        } else {
+            using t = hop::debug<boost::mp11::mp_first<OL>>;
+
+        }
+    }
+
+
+
+
+
+    void test() {
+        foo(0, "Hello");
+        foo(std::vector<std::string>{}, 2, 3);
+    }
+}
+
+
 
 int main() {
 #define CALL_TEST(n)    \
@@ -846,6 +992,8 @@ int main() {
     CALL_TEST(16);
     CALL_TEST(17);
     CALL_TEST(18);
+    CALL_TEST(19);
+    CALL_TEST(20);
 
 }
 
