@@ -184,7 +184,40 @@ A single overload `hop::ol<...>` consists of a list of types that are:
 - `hop::general_defaulted_param<T, _Init = default_init<T>>`, creates an argument of type `T` or nothing. `hop::general_defaulted_param` can appear in any position of the type-list
 - `hop::fwd` is a place holder for a *forwarding-reference* and accepts any type
 - `hop::fwd_if<template<class> class _If>` is a *forwarding-reference* with SFINAE condition applied to the actual parameter type
-- `hop::adapt` adapts an existing function as an overload
+- `hop::adapt` adapts an existing function as an overload: `hop::adapt<decltype(bar), bar>`
+- `hop::adapted` can be used to adapt existing overload-sets or templates:
+  ```
+  
+    void bar(int n, std::string s) {
+       ...
+    }
+    
+    template<class T>
+    auto qux(T&& t, double d, std::string const& s) {
+       ...
+    }
+
+    struct adapt_qux {
+        template<class... Ts>
+        static decltype(qux(std::declval<Ts>()...)) forward(Ts&&... ts) {
+            return qux(std::forward<Ts>(ts)...);
+        }
+    };
+    
+    using overloads_t = hop::ol_list <
+      hop::adapt<decltype(bar), bar>,
+      hop::adapted<adapt_qux>
+    >;
+    
+    template<typename... Ts, decltype((hop::enable<overloads_t, Ts...>()), 0) = 0 >
+    void foo(Ts&& ... ts) {
+        using OL = decltype(hop::enable<overloads_t, Ts...>());
+        if constexpr (hop::is_adapted_v<OL>) {
+            return hop::forward_adapted<OL>(std::forward<Ts>(ts)...);
+        }
+    }
+    
+  ```
 - for template type deduction there is a *global* and a *local* version:
   - the *global* version corresponds to the usual template type deducing. Let's look a an example:
     ```
@@ -207,7 +240,7 @@ A single overload `hop::ol<...>` consists of a list of types that are:
     foo(my_map, another_set); // error
     ``` 
     All arguments specified with `hop::deduce` take part in the global type-deduction, thus `foo` can only be called with a map and a set, where the set-type is the same as the mapped-to-type.
-    Please note, that in the definition of the template-alias for `set_alias` the unused template type `class T1` is required, since `T1` and `T2` are deduced by matching `map_alias` and `set_alias` simultaneously.
+    Please note that in the definition of the template-alias for `set_alias` the unused template type `class T1` is required, since `T1` and `T2` are deduced by matching `map_alias` and `set_alias` *simultaneously*.
     
   - in the *local* version the types are deduced intependently for each argument, for example
     ```
@@ -236,11 +269,40 @@ A single overload `hop::ol<...>` consists of a list of types that are:
 	template<class _Tag, template<class...> class _If, class... _Ty>
 	using tagged_ol_if;
   ```
-  allow to specify an additional SFINAE-condition which is applied to the complete actual parameter type pack
+  allow to specify an additional SFINAE-condition which is applied to the actual parameter type pack. There is also version `tagged_ol_if_q` with expects a quoted meta-function as SFINAE-condition.
 
-All overloads for a single function have to be gathered in a `hop::ol_list<...>`
+All overloads for a single function are gathered in a `hop::ol_list<...>`
 
-Inside a function `hop` provides several templates and functions for inspecting the current overload and accessing function arguments: 
+Inside a function `hop` provides several templates and functions for inspecting the current overload and accessing function arguments:
+- `get_count...` returns the number of arguments (having a certain tag or satisfying a certain condition)
+  ```
+    template<class _Overload>
+    constexpr size_t get_count();
+
+    template<class _Overload, class _Tag>
+    constexpr size_t get_tagged_count();
+
+    template<class _Overload, class _If>
+    constexpr size_t get_count_if_q();
+    
+    template<class _Overload, template<class> class _If>
+    constexpr size_t get_count_if();
+  ``` 
+
+- `get_args...(std::forward<Ts>(ts))...)` returns the arguments (having a certain tag or satisfying a certain condition) as a tuple of references
+  ```
+    template<class _Overload, class... Ts>
+    constexpr decltype(auto) get_args(Ts &&... ts);
+
+    template<class _Overload, class _Tag, class... Ts>
+    constexpr decltype(auto) get_tagged_args(Ts &&... ts);
+
+    template<class _Overload, class _If, class... Ts>
+    constexpr decltype(auto) get_args_if_q(Ts &&... ts);
+
+    template<class _Overload, template<class> class _If, class... Ts>
+    constexpr decltype(auto) get_args_if(Ts &&... ts);
+```
 
 Examples can be found in test\hop_test.cpp.
 
