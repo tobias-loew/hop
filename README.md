@@ -302,7 +302,44 @@ Inside a function `hop` provides several templates and functions for inspecting 
 
     template<class _Overload, template<class> class _If, class... Ts>
     constexpr decltype(auto) get_args_if(Ts &&... ts);
-```
+  ```
+
+
+- 
+  ```
+    template<class _Overload, class _Tag, size_t tag_index = 0, class... Ts>
+    constexpr decltype(auto) get_arg(Ts &&... ts);
+  ```
+  returns 
+    template<class _Overload, class _Tag, class... Ts>
+    constexpr decltype(auto) get_tagged_args(Ts &&... ts);
+
+    template<class _Overload, class _If, class... Ts>
+    constexpr decltype(auto) get_args_if_q(Ts &&... ts);
+
+    template<class _Overload, template<class> class _If, class... Ts>
+    constexpr decltype(auto) get_args_if(Ts &&... ts);
+  ```
+
+
+    // get_arg_or_call will always go for the first type with a matching tag
+    template<class _Overload, class _Tag, size_t tag_index = 0, class _FnOr, class... Ts>
+    constexpr decltype(auto) get_arg_or_call(_FnOr&& _fnor, Ts&&... ts) {
+        return impl::get_arg_or<_Overload, _Tag, tag_index, impl::or_behaviour::is_a_callable>(std::forward<_FnOr>(_fnor), std::forward<Ts>(ts)...);
+    }
+
+    // get_arg_or will always go for the first type with a matching tag
+    template<class _Overload, class _Tag, size_t tag_index = 0, class _Or, class... Ts>
+    constexpr decltype(auto) get_arg_or(_Or && _or, Ts &&... ts) {
+        return impl::get_arg_or<_Overload, _Tag, tag_index, impl::or_behaviour::is_a_value>(std::forward<_Or>(_or), std::forward<Ts>(ts)...);
+    }
+
+
+    // get_arg will always go for the first type with a matching tag
+    template<class _Overload, class _Tag, size_t tag_index = 0, class... Ts>
+    constexpr decltype(auto) get_arg(Ts &&... ts) {
+        return impl::get_arg_or<_Overload, _Tag, tag_index, impl::or_behaviour::result_in_compilation_error>(0, std::forward<Ts>(ts)...);
+    }
 
 Examples can be found in test\hop_test.cpp.
 
