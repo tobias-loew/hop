@@ -83,7 +83,7 @@ Now, we can call `foo` the same way we did for the traditional (bounded) overloa
 	foo(1.5, -0.4, 12.0);
 	foo(42, 0.5);			// error: ambigous
 ```
-Let's see what we can do inside of `foo`. The type `decltype(hop::enable<overloads, Ts...>())` has information about the selected overload, e.g. its zero-based `index`:
+Let's see what we can do inside of `foo`. The type `decltype(hop::enable<overloads, Ts...>())` holds information about the selected overload, e.g. its zero-based `index`:
 ```
 using overloads = hop::ol_list <
 	hop::ol<int, hop::non_empty_pack<int>>,
@@ -146,7 +146,7 @@ void foo(Ts&& ... ts) {
 	}
 }
 ```
-We can also tag types of an overload. This is helpful, when we want to access the argument(s) belonging to a certain type of the overload: 
+We can also tag types of an overload. This is useful, when we want to access the argument(s) belonging to a certain type of the overload: 
 ```
 struct tag_ints {};
 struct tag_double {};
@@ -177,13 +177,14 @@ void foo(Ts&& ... ts) {
 
 Up to now, we can create non-empty homogeneous overloads for specific types. Let's see what else we can do with __hop__.
 A single overload `hop::ol<...>` consists of a list of types that are:
-- normal C++ types, like `int`, `vector<string>`, user-defined type, and, of course, they can be qualified. Those types are matched as if they were types of function arguments.
-- `hop::pack<T>` or `hop::non_empty_pack<T>`, but at-most one per overload. `pack ` and `non_empty_pack` exand to the appropriate (non-zero) number of `T` arguments. *Additional types (including `hop::default_value`) __after__ a `pack` are possible!*
-- `hop::repeat<T, min>`, `hop::repeat<T, min, max>` at least `min` (and up to `max`) times the type `T`
+- normal C++ types, like `int`, `vector<string>`, user-defined types, which may be qualified. Those types are matched as if they were types of function arguments.
+- `hop::repeat<T, min>`, `hop::repeat<T, min, max>` at least `min` (and up to `max`) times the type `T`. If `max` is not specified, then `repeat` is unbounded. Multiple `repeat`s (even unbounded) in a single overload are possible! Also all other types/type-constructs after `repeat` are possible.
+- `hop::pack<T>` or `hop::non_empty_pack<T>` are aliases for `hop::repeat<T, 0>` resp. `hop::repeat<T, 1>`.
 - `hop::cpp_defaulted_param<T, _Init = default_init<T>>`, creates an argument of type `T` or nothing. `hop::cpp_defaulted_param` creates a C++-style defult-param: types following a `hop::cpp_defaulted_param` must also be a `hop::cpp_defaulted_param`
 - `hop::general_defaulted_param<T, _Init = default_init<T>>`, creates an argument of type `T` or nothing. `hop::general_defaulted_param` can appear in any position of the type-list
 - `hop::fwd` is a place holder for a *forwarding-reference* and accepts any type
 - `hop::fwd_if<template<class> class _If>` is a *forwarding-reference* with SFINAE condition applied to the actual parameter type
+- `hop::adapt` adapts an existing function as an overload
 - for template type deduction there is a *global* and a *local* version:
   - the *global* version corresponds to the usual template type deducing. Let's look a an example:
     ```
