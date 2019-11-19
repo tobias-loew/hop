@@ -1119,7 +1119,7 @@ namespace hop {
         };
 
 
-        // specialization used in get_arg_or
+        // specialization used in get_tagged_arg_or
         template<class _Ty, bool _specified, bool _general>
         struct get_tag<defaulted_type_t<_Ty, _specified, _general>> {
             using type = typename get_tag<_Ty>::type;
@@ -1168,9 +1168,9 @@ namespace hop {
         template<typename V, typename T>
         using append_actual_index_t = typename append_actual_index<V, T>::type;
 
-        // get_arg_or will always go for the first type with a matching tag
+        // get_tagged_arg_or will always go for the first type with a matching tag
         template<class _Overload, class _Tag, size_t tag_index, or_behaviour or_behaviour_, class _Or, class... Ts>
-        constexpr decltype(auto) get_arg_or(_Or&& _or, Ts&&... ts) {
+        constexpr decltype(auto) get_tagged_arg_or(_Or&& _or, Ts&&... ts) {
             using expected_types = expected_parameter_overload_type<_Overload>;
             using expected_types_with_actual_index = mp_fold< expected_types, mp_list<>, append_actual_index_t>;
                 
@@ -1237,23 +1237,23 @@ namespace hop {
             }
             }
         }
-    // get_arg_or_call will always go for the first type with a matching tag
+    // get_tagged_arg_or_call will always go for the first type with a matching tag
     template<class _Overload, class _Tag, size_t tag_index = 0, class _FnOr, class... Ts>
-    constexpr decltype(auto) get_arg_or_call(_FnOr&& _fnor, Ts&&... ts) {
-        return impl::get_arg_or<_Overload, _Tag, tag_index, impl::or_behaviour::is_a_callable>(std::forward<_FnOr>(_fnor), std::forward<Ts>(ts)...);
+    constexpr decltype(auto) get_tagged_arg_or_call(_FnOr&& _fnor, Ts&&... ts) {
+        return impl::get_tagged_arg_or<_Overload, _Tag, tag_index, impl::or_behaviour::is_a_callable>(std::forward<_FnOr>(_fnor), std::forward<Ts>(ts)...);
     }
 
-    // get_arg_or will always go for the first type with a matching tag
+    // get_tagged_arg_or will always go for the first type with a matching tag
     template<class _Overload, class _Tag, size_t tag_index = 0, class _Or, class... Ts>
-    constexpr decltype(auto) get_arg_or(_Or && _or, Ts &&... ts) {
-        return impl::get_arg_or<_Overload, _Tag, tag_index, impl::or_behaviour::is_a_value>(std::forward<_Or>(_or), std::forward<Ts>(ts)...);
+    constexpr decltype(auto) get_tagged_arg_or(_Or && _or, Ts &&... ts) {
+        return impl::get_tagged_arg_or<_Overload, _Tag, tag_index, impl::or_behaviour::is_a_value>(std::forward<_Or>(_or), std::forward<Ts>(ts)...);
     }
 
 
-    // get_arg will always go for the first type with a matching tag
+    // get_tagged_arg will always go for the first type with a matching tag
     template<class _Overload, class _Tag, size_t tag_index = 0, class... Ts>
-    constexpr decltype(auto) get_arg(Ts &&... ts) {
-        return impl::get_arg_or<_Overload, _Tag, tag_index, impl::or_behaviour::result_in_compilation_error>(0, std::forward<Ts>(ts)...);
+    constexpr decltype(auto) get_tagged_arg(Ts &&... ts) {
+        return impl::get_tagged_arg_or<_Overload, _Tag, tag_index, impl::or_behaviour::result_in_compilation_error>(0, std::forward<Ts>(ts)...);
     }
 
 

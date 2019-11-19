@@ -409,7 +409,7 @@ namespace ns_test_11 {
 }
 
 namespace ns_test_12 {
-    // accessing cpp-style default-params (with get_arg_or or get_indexed_defaulted)
+    // accessing cpp-style default-params (with get_tagged_arg_or or get_indexed_defaulted)
 
     struct init_hallo {
         std::string operator()() const { return "hallo defaulted world"; }
@@ -426,9 +426,9 @@ namespace ns_test_12 {
     void foo(Ts&& ... ts) {
         using OL = decltype(hop::enable<overloads_t, Ts...>());
 
-        std::cout << "get_arg_or:" << std::endl;
-        auto defaulted_param_0 = hop::get_arg_or<OL, tag_defaulted_string>(-1, std::forward<Ts>(ts)...);
-        auto defaulted_param_1 = hop::get_arg_or<OL, tag_defaulted_double>(-1, std::forward<Ts>(ts)...);
+        std::cout << "get_tagged_arg_or:" << std::endl;
+        auto defaulted_param_0 = hop::get_tagged_arg_or<OL, tag_defaulted_string>(-1, std::forward<Ts>(ts)...);
+        auto defaulted_param_1 = hop::get_tagged_arg_or<OL, tag_defaulted_double>(-1, std::forward<Ts>(ts)...);
         std::apply(output_args, std::make_tuple(defaulted_param_0, defaulted_param_1));
 
         std::cout << "get_indexed_defaulted:" << std::endl;
@@ -538,7 +538,7 @@ namespace ns_test_14 {
 
 
 namespace ns_test_15 {
-    // get_arg_or
+    // get_tagged_arg_or
 
     struct tag_long_arg;
 
@@ -556,8 +556,8 @@ namespace ns_test_15 {
 
         std::apply(output_args, hop::get_args<OL>(std::forward<Ts>(ts)...));
 
-        // hop::get_arg_or returns the specified tagged-parameter (or its default-value), if there is no parameter with the specified tag, then the 'or' value is returned
-        auto&& long_arg = hop::get_arg_or<OL, tag_long_arg>(42.0, std::forward<Ts>(ts)...);
+        // hop::get_tagged_arg_or returns the specified tagged-parameter (or its default-value), if there is no parameter with the specified tag, then the 'or' value is returned
+        auto&& long_arg = hop::get_tagged_arg_or<OL, tag_long_arg>(42.0, std::forward<Ts>(ts)...);
         output_args(std::forward<decltype(long_arg)>(long_arg));
     }
 
