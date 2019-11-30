@@ -205,7 +205,7 @@ namespace hop {
 
                 struct no_match;
             template<template<class...> class Pattern>
-            static mp_list<std::false_type> test(...);
+            static mp_list<std::false_type, mp_list<>> test(...);
 
             template<class T>
             using fn = mp_first<decltype(test<Pattern_>(std::declval<T>()))>;
@@ -292,7 +292,7 @@ namespace hop {
 
 
                 template<template<class> class lazy_expander>
-            static mp_list<std::false_type> test(...) {
+            static mp_list<std::false_type, mp_list<>> test(...) {
                 using t = typename debug<typename lazy_expander<Pattern_q>::type>::type;
                 return{};
             }
@@ -587,6 +587,7 @@ namespace hop {
 
         template<class _Tag, class _Ty, class Arg>
         struct make_deduction_pattern<tagged_ty<_Tag, _Ty>, Arg> : make_deduction_pattern<_Ty, Arg> {
+            using type = typename make_deduction_pattern<_Ty, Arg>::type;
         };
 
 
@@ -601,6 +602,13 @@ namespace hop {
 
             static constexpr bool value = has_no_deduction_pattern ||
                 deducer_t<typename make_deduction_pattern<_FormalTys, _ActualTys>::type...>::template fn<_ActualTys...>::value;
+
+            using deduced_t = 
+                mp_eval_if_c< has_no_deduction_pattern,
+                    mp_list<>,
+                    typename deducer_t<typename make_deduction_pattern<_FormalTys, _ActualTys>::type...>::template deduced,
+                    _ActualTys...
+                >;
         };
 
 
@@ -646,7 +654,17 @@ namespace hop {
                 deduction_helper<mp_list<T...>, mp_list<_Tys...>>::value
                 , int* > = nullptr
             >
-                constexpr mp_list<_Info, std::integral_constant<size_t, _Idx>, _ActualTypes, DefaultedTypeInfo, mp_list<_Tys...>, mp_list<T...>> test(typename unpack_replace_tmpl<_Tys, T>::type...) const;
+
+
+                constexpr mp_list<
+                    _Info,                                                                   //static constexpr size_t information_index = 0;
+                    std::integral_constant<size_t, _Idx>,                                    //static constexpr size_t overload_index = 1;
+                    _ActualTypes,                                                            //static constexpr size_t expected_parameter_overload_type_index = 2;        // the type-list of the selected overload WITH default-params
+                    DefaultedTypeInfo,                                                       //static constexpr size_t default_info_type_index = 3;        // the original secification of the selected overload with default-info
+                    mp_list<_Tys...>,                                                        //static constexpr size_t actual_parameter_overload_type_index = 4;     // the type-list of the selected overload
+                    mp_list<T...>,                                                           //static constexpr size_t deduced_local_parameter_overload_type_index = 5;     // the local deduced types
+                    typename deduction_helper<mp_list<T...>, mp_list<_Tys...>>::deduced_t    //static constexpr size_t deduced_parameter_overload_type_index = 6;     // the (global) deduced types
+                > test(typename unpack_replace_tmpl<_Tys, T>::type...) const;
         };
 
 
@@ -1006,7 +1024,8 @@ namespace hop {
     static constexpr size_t expected_parameter_overload_type_index = 2;        // the type-list of the selected overload WITH default-params
     static constexpr size_t default_info_type_index = 3;        // the original secification of the selected overload with default-info
     static constexpr size_t actual_parameter_overload_type_index = 4;     // the type-list of the selected overload
-    static constexpr size_t deduced_parameter_overload_type_index = 5;     // the deduced types
+    static constexpr size_t deduced_local_parameter_overload_type_index = 5;     // the local deduced types
+    static constexpr size_t deduced_parameter_overload_type_index = 6;     // the (global) deduced types
 
 
     template<class _Overload>
@@ -1056,6 +1075,9 @@ namespace hop {
 
     template<class _Overload>
     using expected_parameter_overload_type = mp_at_c<_Overload, expected_parameter_overload_type_index>;
+
+    template<class _Overload>
+    using deduced_local_parameter_overload_type = mp_at_c<_Overload, deduced_local_parameter_overload_type_index>;
 
     template<class _Overload>
     using deduced_parameter_overload_type = mp_at_c<_Overload, deduced_parameter_overload_type_index>;
@@ -1379,12 +1401,15 @@ namespace hop {
 
 
     template<class _Overload, size_t index>
-    using deduced = mp_at_c<deduced_parameter_overload_type<_Overload>, index>;
+    using deduced_local = mp_at_c<deduced_local_parameter_overload_type<_Overload>, index>;
 
 
     template<class _Overload, size_t index>
-    using deduced_types =
-        typename impl::get_tmpl<mp_at_c<actual_parameter_overload_type< _Overload>, index>>::type::_if::template deduced<deduced<_Overload, index>>;
+    using deduced_local_types =
+        typename impl::get_tmpl<mp_at_c<actual_parameter_overload_type< _Overload>, index>>::type::_if::template deduced<deduced_local<_Overload, index>>;
+
+    template<class _Overload>
+    using deduced_types = deduced_parameter_overload_type<_Overload>;
 
 
 

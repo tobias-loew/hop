@@ -74,6 +74,26 @@ auto printer(tag_t<std::vector<T> const&&>) {
 }
 
 template<class T>
+auto printer(tag_t<std::list<T>>) {
+    return [](std::list<T> const& s) {return "a"; };
+}
+
+template<class T>
+auto printer(tag_t<std::list<T>&>) {
+    return [](std::list<T> const& s) {return "a"; };
+}
+
+template<class T>
+auto printer(tag_t<std::list<T>&&>) {
+    return [](std::list<T> const& s) {return "a"; };
+}
+
+template<class T>
+auto printer(tag_t<std::list<T> const&&>) {
+    return [](std::list<T> const& s) {return "a"; };
+}
+
+template<class T>
 decltype(auto) make_printable(T&& arg) {
     return printer(tag_t<T>{})(std::forward<T>(arg));
 }
@@ -727,7 +747,7 @@ namespace ns_test_17 {
         if constexpr (hop::has_tag_v<OL, tag_vector>) {
             output_args(std::forward<Ts>(ts)...);
         } else if constexpr (hop::has_tag_v<OL, tag_list_alloc>) {
-            using Actual = hop::deduced_types<OL, 0>;
+            using Actual = hop::deduced_local_types<OL, 0>;
           
   //          typename hop::debug<Actual>::type d;
           //  typename hop::debug<boost::mp11::mp_second<Actual>>::type d;
@@ -854,8 +874,8 @@ namespace ns_test_19 {
     template<class T1, class T2>
     using set_alias = std::set<T2>const&;
 
-    //template<class T1, class T2, class Alloc2>
-    //using map_list_alloc = std::list<T2, Alloc>const&;
+    template<class T2, class Alloc2>
+    using map_list_alloc = std::list<T2, Alloc2>const&;
 
     //template<class T>
     //using map_vector1 = std::vector<T>const&;
@@ -870,7 +890,7 @@ namespace ns_test_19 {
 //        , hop::tagged_ol<tag_vector, hop::deduce<map_vector1>>        // one std::string
 , hop::tagged_ol<tag_vector, std::string>        // one std::string
 //,hop::ol<int>        // one std::string
-//,hop::tagged_ol<tag_list_alloc, hop::deduce_local<map_list_alloc>>        // one std::string
+,hop::tagged_ol<tag_list_alloc, hop::deduce_local<map_list_alloc>>        // one std::string
 //hop::ol<hop::fwd_if_q<deduce<std::vector>>>        // one std::string
 //,
 //hop::ol<hop::fwd_if_q<deduce_ref<std::vector>>>        // one std::string
@@ -884,16 +904,18 @@ namespace ns_test_19 {
         if constexpr (hop::has_tag_v<OL, tag_vector>) {
             //output_args(std::forward<Ts>(ts)...);
         } else if constexpr (hop::has_tag_v<OL, tag_list_alloc>) {
-            //            using Actual = hop::deduced_types<OL, 0>;
+                        using Actual = hop::deduced_local_types<OL, 0>;
 
-              //          typename hop::debug<Actual>::type d;
-                      //  typename hop::debug<boost::mp11::mp_second<Actual>>::type d;
-                      //  using arg_0_t = boost::mp11::mp_first<Actual>;
-                      //  arg_0_t t;
-                      //  t = "";
-                      ////z  typename hop::debug<arg_0_t>::type d;
-                      //  int i = 42;
-            //            output_args(std::forward<Ts>(ts)...);
+//                        hop::debug<boost::mp11::mp_second<Actual>> d;
+                        typename boost::mp11::mp_second<Actual> d;
+                        using arg_0_t = boost::mp11::mp_first<Actual>;
+                        arg_0_t t;
+                        t = 42;
+                        auto p = d.allocate(10);
+                        d.deallocate(p, 10);
+                      //z  typename hop::debug<arg_0_t>::type d;
+                        int i = 42;
+                        output_args(std::forward<Ts>(ts)...);
         }
         //output_args(std::forward<Ts>(ts)...);
     }
@@ -904,7 +926,7 @@ namespace ns_test_19 {
 
     void test() {
         foo("Hello");
-        //        foo(std::list<int>{});
+               foo(std::list<int>{});
          //       foo(std::string{}, std::list<int>{});
         foo(std::map<int, std::string>{}, std::set<std::string>{});
         //foo(std::vector<int>{}/*, std::list<int>{}*/);
