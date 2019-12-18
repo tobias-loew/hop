@@ -142,7 +142,7 @@ namespace ns_test_2 {
     // a homogenous pack
 
     using overloads_t = hop::ol_list <
-        hop::ol<hop::pack<int>>     // accpet a (possibly empty) list of ints
+        hop::ol<hop::pack<int>>     // accept a (possibly empty) list of ints
     >;
 
     template<typename... Ts, decltype((hop::enable<overloads_t, Ts...>()), 0) = 0 >
@@ -991,7 +991,95 @@ namespace ns_test_20 {
 
 
 
+namespace ns_test_21 {
+    // a homogenous pack
+
+    using overloads_t = hop::ol_list <
+        hop::ol<hop::group<int, std::string>>     // accept a (possibly empty) list of ints
+    >;
+
+    template<typename... Ts, decltype((hop::enable<overloads_t, Ts...>()), 0) = 0 >
+    void foo(Ts&& ... ts) {
+        using OL = decltype(hop::enable<overloads_t, Ts...>());
+
+        output_args(std::forward<Ts>(ts)...);
+    }
+
+
+    void test() {
+        foo(42, "");
+    }
+}
+
+
+
+using namespace boost::mp11;
+
+
+
+// mp_flatten<L, L2 = mp_clear<L>>
+namespace detail {
+
+    template<class L2> struct mp_flatten_impl {
+        template<class T> using fn = mp_if<mp_similar<L2, T>, T, mp_list<T>>;
+    };
+
+} // namespace detail
+
+template<class L, class L2 = mp_clear<L>> using mp_flatten = mp_apply<mp_append, mp_push_front<mp_transform_q<::detail::mp_flatten_impl<L2>, L>, mp_clear<L>>>;
+
+
+template<class L>
+struct mp_concat_s;
+
+template<template<class...> class L, class... Ts>
+struct mp_concat_s<L<Ts...>> {
+    using type = mp_append<Ts...>;
+};
+
+template<class L>
+using mp_concat = typename mp_concat_s<L>::type;
+
+template<class L>
+using mp_union = mp_fold<L, mp_list<>, mp_append>;
+
+
+namespace test {
+    int main2();
+}
+
 int main() {
+    {
+        test::main2();
+
+        using TT = mp_list< mp_list<char, int>, mp_list<double, unsigned>>;
+
+        //using jj = hop::debug<mp_transform_q<::detail::mp_flatten_impl<mp_list<>>, TT>>;
+        using jj = mp_apply<mp_append, mp_push_front<mp_transform_q<::detail::mp_flatten_impl<mp_clear<TT>>, TT>, mp_clear<TT>>>;
+
+        using UnionTT = mp_union<TT>;
+        using UnionTT3 = mp_concat<TT>;
+        using UnionTT2 = mp_append<mp_list<char, int>, mp_list<double, unsigned>>;
+        using UnionTT4 = mp_flatten<TT>;
+
+        UnionTT tt;
+        UnionTT2 tt2;
+        UnionTT3 tt3;
+        UnionTT4 tt4;
+        int j = 42;
+        using P = mp_product<mp_list, std::tuple<char, int>, std::tuple<double, unsigned>>;
+        using pT = mp_transform < mp_append, mp_product<mp_list, std::tuple<char, int>, std::tuple<double, unsigned>>>;
+        using T = mp_first < mp_transform < mp_append, mp_product<mp_list, std::tuple<char, int>, std::tuple<double, unsigned>>>>;
+
+//        mp_first< mp_transform<mp_append, mp_product<mp_list, mp_list<mp_first<_Value>>, mp_list<typename _Unexpanded::type>>>>,
+
+        P p;
+        pT pt;
+        T t;
+        int i = 42;
+
+    }
+
 #define CALL_TEST(n)    \
     std::cout << std::endl << "START TEST " #n << std::endl << std::endl;\
     ns_test_##n::test();
@@ -1016,6 +1104,7 @@ int main() {
     CALL_TEST(18);
     CALL_TEST(19);
     CALL_TEST(20);
+    CALL_TEST(21);
 
 }
 
