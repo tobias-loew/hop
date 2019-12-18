@@ -10,7 +10,9 @@
 // For more information, see https://github.com/tobias-loew/hop
 //
 
-#pragma once
+#ifndef HOP_HOP_HPP_INCLUDED
+#define HOP_HOP_HPP_INCLUDED
+
 
 #include <type_traits>
 #include <algorithm>
@@ -1463,3 +1465,4 @@ namespace hop {
 
 }
 
+#endif HOP_HOP_HPP_INCLUDED
