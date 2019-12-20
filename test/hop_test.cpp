@@ -994,20 +994,21 @@ namespace ns_test_20 {
 namespace ns_test_21 {
     // a homogenous pack
 
-    using overloads_t = hop::ol_list <
-        hop::ol<hop::group<int, std::string>>     // accept a (possibly empty) list of ints
-    >;
+    //using overloads_t = hop::ol_list <
+    //    hop::ol<hop::pack<hop::group<int, std::string>>>     // accept a (possibly empty) list of ints
+    //>;
 
-    template<typename... Ts, decltype((hop::enable<overloads_t, Ts...>()), 0) = 0 >
-    void foo(Ts&& ... ts) {
-        using OL = decltype(hop::enable<overloads_t, Ts...>());
+    //template<typename... Ts, decltype((hop::enable<overloads_t, Ts...>()), 0) = 0 >
+    //void foo(Ts&& ... ts) {
+    //    using OL = decltype(hop::enable<overloads_t, Ts...>());
 
-        output_args(std::forward<Ts>(ts)...);
-    }
+    //    output_args(std::forward<Ts>(ts)...);
+    //}
 
 
     void test() {
-        foo(42, "");
+//        foo();
+//        foo(42, "");
     }
 }
 
