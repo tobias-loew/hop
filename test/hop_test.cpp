@@ -11,6 +11,7 @@
 //
 
 #include <iostream>
+#include <fstream>
 #include <string>
 #include <locale>
 #include <codecvt> 
@@ -20,6 +21,8 @@
 #include <map>
 #include "..\include\hop.hpp"
 
+
+auto&& os = std::ofstream("hop_out.txt");
 
 template<class T>
 struct tag_t { constexpr tag_t() {} };
@@ -105,9 +108,9 @@ struct output_args_ {
 
     template<class... Ts>
     void operator()(Ts&& ... ts) const {
-        std::cout << "args:" << std::endl;
-        ((std::cout << make_printable(std::forward<Ts>(ts)) << std::endl), ...);
-        std::cout << std::endl;
+        os << "args:" << std::endl;
+        ((os << make_printable(std::forward<Ts>(ts)) << std::endl), ...);
+        os << std::endl;
     }
 };
 
@@ -342,9 +345,9 @@ namespace ns_test_8 {
         std::apply(output_args, std::forward<decltype(double_args)>(double_args));
 
         static constexpr size_t int_args_count = hop::get_tagged_count<OL, tag_int>();
-        std::cout << "int args count: " << int_args_count << std::endl;
+        os << "int args count: " << int_args_count << std::endl;
         static constexpr size_t double_args_count = hop::get_tagged_count<OL, tag_double>();
-        std::cout << "double args count: " << double_args_count << std::endl;
+        os << "double args count: " << double_args_count << std::endl;
     }
 
 
@@ -446,12 +449,12 @@ namespace ns_test_12 {
     void foo(Ts&& ... ts) {
         using OL = decltype(hop::enable<overloads_t, Ts...>());
 
-        std::cout << "get_tagged_arg_or:" << std::endl;
+        os << "get_tagged_arg_or:" << std::endl;
         auto defaulted_param_0 = hop::get_tagged_arg_or<OL, tag_defaulted_string>(-1, std::forward<Ts>(ts)...);
         auto defaulted_param_1 = hop::get_tagged_arg_or<OL, tag_defaulted_double>(-1, std::forward<Ts>(ts)...);
         std::apply(output_args, std::make_tuple(defaulted_param_0, defaulted_param_1));
 
-        std::cout << "get_indexed_defaulted:" << std::endl;
+        os << "get_indexed_defaulted:" << std::endl;
         if constexpr (hop::defaults_specified<OL>::value == 0) {
             auto defaulted_param_0 = hop::get_indexed_defaulted<OL, 0>(std::forward<Ts>(ts)...);
             auto defaulted_param_1 = hop::get_indexed_defaulted<OL, 1>(std::forward<Ts>(ts)...);
@@ -491,13 +494,13 @@ namespace ns_test_13 {
         using OL = decltype(hop::enable<overloads_t, Ts...>());
 
         if constexpr (hop::index<OL>::value == 0) {
-            std::cout << "overload: (long, long)" << std::endl;
+            os << "overload: (long, long)" << std::endl;
             output_args(std::forward<Ts>(ts)...);
         } else if constexpr (hop::index<OL>::value == 1) {
-            std::cout << "overload: (double, double)" << std::endl;
+            os << "overload: (double, double)" << std::endl;
             output_args(std::forward<Ts>(ts)...);
         } else if constexpr (hop::index<OL>::value == 2) {
-            std::cout << "overload: (std::string...)" << std::endl;
+            os << "overload: (std::string...)" << std::endl;
             output_args(std::forward<Ts>(ts)...);
         } else {
             static_assert(hop::dependent_false<OL>::value, "Ooops!");
@@ -533,13 +536,13 @@ namespace ns_test_14 {
         using OL = decltype(hop::enable<overloads_t, Ts...>());
 
         if constexpr (hop::has_tag_v<OL, tag_longs>) {
-            std::cout << "overload: (long, long)" << std::endl;
+            os << "overload: (long, long)" << std::endl;
             output_args(std::forward<Ts>(ts)...);
         } else if constexpr (hop::has_tag_v<OL, tag_doubles>) {
-            std::cout << "overload: (double, double)" << std::endl;
+            os << "overload: (double, double)" << std::endl;
             output_args(std::forward<Ts>(ts)...);
         } else if constexpr (hop::has_tag_v<OL, tag_strings>) {
-            std::cout << "overload: (std::string...)" << std::endl;
+            os << "overload: (std::string...)" << std::endl;
             output_args(std::forward<Ts>(ts)...);
         } else {
             static_assert(hop::dependent_false<OL>::value, "Ooops!");
@@ -624,10 +627,10 @@ namespace ns_test_16 {
             using OL = decltype(hop::enable<overloads, Ts...>());
 
             if constexpr (hop::has_tag_v<OL, tag_ints>) {
-                std::cout << "overload: base::foo(int, ...)" << std::endl;
+                os << "overload: base::foo(int, ...)" << std::endl;
                 output_args(std::forward<Ts>(ts)...);
             } else if constexpr (hop::has_tag_v<OL, tag_doubles>) {
-                std::cout << "overload: base::foo(double, ...)" << std::endl;
+                os << "overload: base::foo(double, ...)" << std::endl;
                 output_args(std::forward<Ts>(ts)...);
             }
         }
@@ -652,10 +655,10 @@ namespace ns_test_16 {
             if constexpr (hop::is_from_base_v<OL>) {
                 base::foo(std::forward<Ts>(ts)...);
             } else if constexpr (hop::has_tag_v<OL, tag_strings>) {
-                std::cout << "overload: derived::foo(std::string, ...)" << std::endl;
+                os << "overload: derived::foo(std::string, ...)" << std::endl;
                 output_args(std::forward<Ts>(ts)...);
             } else if constexpr (hop::has_tag_v<OL, tag_floats>) {
-                std::cout << "overload: derived::foo(float, ...)" << std::endl;
+                os << "overload: derived::foo(float, ...)" << std::endl;
                 output_args(std::forward<Ts>(ts)...);
             }
         }
@@ -944,13 +947,13 @@ namespace ns_test_20 {
 
 
     void bar(int n, std::string s) {
-        std::cout << "bar called: " << std::endl;
+        os << "bar called: " << std::endl;
         output_args(n, s);
     }
 
     template<class T>
     void qux(T t, double d1, double d2) {
-        std::cout << "qux called: " << std::endl;
+        os << "qux called: " << std::endl;
         output_args(t, d1, d2);
     }
 
@@ -993,7 +996,7 @@ namespace ns_test_20 {
 
 int main() {
 #define CALL_TEST(n)    \
-    std::cout << std::endl << "START TEST " #n << std::endl << std::endl;\
+    os << std::endl << "START TEST " #n << std::endl << std::endl;\
     ns_test_##n::test();
 
     CALL_TEST(1);
