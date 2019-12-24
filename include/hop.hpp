@@ -667,44 +667,21 @@ namespace hop {
 
         //////////////////////////////////////////////////////////////////////////////////////////////////
         // core template that generates the call-operator to test
-        template <size_t _Idx, class _Ty>
-        struct _single_overload;
-
-        //template <size_t _Idx, class... _Tys, class _ExpectedTypes, class _DefaultedInfo, class _Info, class _If>
-        //struct _single_overload<_Idx, mp_list<mp_list<_Tys...>, _ExpectedTypes, _DefaultedInfo, _Info, _If>> {
-        template <size_t _Idx, class... _ArgTys, class _Info, class _If>
-        struct _single_overload<_Idx, mp_list<mp_list<_ArgTys...>, _Info, _If>> {
+        template <size_t _Idx, class _ExpandedTypes, class _ExpectedTypes, class _DefaultedTypes, class _Info, class _If>
+        struct _single_overload_helper;
+            
+        template <size_t _Idx, class... _ExpandedTys, class... _ExpectedTys, class... _DefaultedTys, class _Info, class _If>
+        struct _single_overload_helper<_Idx, mp_list<_ExpandedTys...>, mp_list<_ExpectedTys...>, mp_list<_DefaultedTys...>, _Info, _If> {
 
             //static_assert(mp_size<typename _Info::overload_t>::value ==
             //    mp_size<_DefaultedInfo>::value);
 
 
-            using expanded_types = mp_list<typename _ArgTys::expanded_type ...>;
-            using expected_types = mp_list<typename _ArgTys::expected_type ...>;
-            using defaulted_types = mp_list<typename _ArgTys::defaulted_type ...>;
+            using expanded_types = mp_list<_ExpandedTys...>;
+            using expected_types = mp_list<_ExpectedTys...>;
+            using defaulted_types = mp_list<_DefaultedTys...>;
 
 
-            //template<class _Ty, class DefaultInfo>
-            //struct _add_default_info;
-
-            //template<class _Ty>
-            //struct _add_default_info<_Ty, not_defaulted_t> {
-            //    using type = _Ty;
-            //};
-
-            //template<class _Ty, bool _specified, bool _general>
-            //struct _add_default_info<_Ty, defaulted_t<_specified, _general>> {
-            //    using type = defaulted_type_t<_Ty, _specified, _general>;
-            //};
-
-            //template<class _Ty, class DefaultInfo>
-            //using add_default_info = typename _add_default_info<_Ty, DefaultInfo>::type;;
-
-            //using DefaultedTypeInfo = mp_transform<
-            //    add_default_info,
-            //    debug<typename _Info::overload_t>,
-            //    defaulted_types
-            //>;
 
             template<
                 class... T,
@@ -717,14 +694,92 @@ namespace hop {
 
 
                 constexpr mp_list<
-                    _Info,                                                                   //static constexpr size_t information_index = 0;
-                    std::integral_constant<size_t, _Idx>,                                    //static constexpr size_t overload_index = 1;
-                    expected_types,                                                            //static constexpr size_t expected_parameter_overload_type_index = 2;        // the type-list of the selected overload WITH default-params
-                    defaulted_types,                                                       //static constexpr size_t default_info_type_index = 3;        // the original secification of the selected overload with default-info
-                    expanded_types,                                                        //static constexpr size_t actual_parameter_overload_type_index = 4;     // the type-list of the selected overload
-                    mp_list<T...>,                                                           //static constexpr size_t deduced_local_parameter_overload_type_index = 5;     // the local deduced types
-                    typename deduction_helper<mp_list<T...>, expanded_types>::deduced_t    //static constexpr size_t deduced_parameter_overload_type_index = 6;     // the (global) deduced types
-                > test(typename unpack_replace_tmpl<typename _ArgTys::expanded_type, T>::type...) const;
+                _Info,                                                                   //static constexpr size_t information_index = 0;
+                std::integral_constant<size_t, _Idx>,                                    //static constexpr size_t overload_index = 1;
+                expected_types,                                                            //static constexpr size_t expected_parameter_overload_type_index = 2;        // the type-list of the selected overload WITH default-params
+                defaulted_types,                                                       //static constexpr size_t default_info_type_index = 3;        // the original secification of the selected overload with default-info
+                expanded_types,                                                        //static constexpr size_t actual_parameter_overload_type_index = 4;     // the type-list of the selected overload
+                mp_list<T...>,                                                           //static constexpr size_t deduced_local_parameter_overload_type_index = 5;     // the local deduced types
+                typename deduction_helper<mp_list<T...>, expanded_types>::deduced_t    //static constexpr size_t deduced_parameter_overload_type_index = 6;     // the (global) deduced types
+                > test(typename unpack_replace_tmpl<_ExpandedTys, T>::type...) const;
+        };
+
+
+        template <size_t _Idx, class _Ty>
+        struct _single_overload;
+
+        //template <size_t _Idx, class... _Tys, class _ExpectedTypes, class _DefaultedInfo, class _Info, class _If>
+        //struct _single_overload<_Idx, mp_list<mp_list<_Tys...>, _ExpectedTypes, _DefaultedInfo, _Info, _If>> {
+        template <size_t _Idx, class... _ArgTys, class _Info, class _If>
+        struct _single_overload<_Idx, mp_list<mp_list<_ArgTys...>, _Info, _If>>
+            :_single_overload_helper<
+            _Idx, 
+            mp_flatten<mp_list<typename _ArgTys::expanded_type_list ...>>,
+            mp_flatten < mp_list<typename _ArgTys::expected_type_list ...>>,
+            mp_flatten < mp_list<typename _ArgTys::defaulted_type_list ...>>,
+            _Info, 
+            _If
+            >
+        {
+            using _single_overload_helper<
+                _Idx,
+                mp_flatten<mp_list<typename _ArgTys::expanded_type_list ...>>,
+                mp_flatten < mp_list<typename _ArgTys::expected_type_list ...>>,
+                mp_flatten < mp_list<typename _ArgTys::defaulted_type_list ...>>,
+                _Info,
+                _If
+            >::test;
+
+            ////static_assert(mp_size<typename _Info::overload_t>::value ==
+            ////    mp_size<_DefaultedInfo>::value);
+
+
+            //using expanded_types = mp_flatten<mp_list<typename _ArgTys::expanded_type_list ...>>;
+            //using expected_types = mp_flatten < mp_list<typename _ArgTys::expected_type_list ...>>;
+            //using defaulted_types= mp_flatten < mp_list<typename _ArgTys::defaulted_type_list ...>>;
+
+
+            ////template<class _Ty, class DefaultInfo>
+            ////struct _add_default_info;
+
+            ////template<class _Ty>
+            ////struct _add_default_info<_Ty, not_defaulted_t> {
+            ////    using type = _Ty;
+            ////};
+
+            ////template<class _Ty, bool _specified, bool _general>
+            ////struct _add_default_info<_Ty, defaulted_t<_specified, _general>> {
+            ////    using type = defaulted_type_t<_Ty, _specified, _general>;
+            ////};
+
+            ////template<class _Ty, class DefaultInfo>
+            ////using add_default_info = typename _add_default_info<_Ty, DefaultInfo>::type;;
+
+            ////using DefaultedTypeInfo = mp_transform<
+            ////    add_default_info,
+            ////    debug<typename _Info::overload_t>,
+            ////    defaulted_types
+            ////>;
+
+            //template<
+            //    class... T,
+            //    std::enable_if_t<
+            //    mp_invoke_q<_If, T...>::value
+            //    &&
+            //    deduction_helper<mp_list<T...>, expanded_types>::value
+            //    , int* > = nullptr
+            //>
+
+
+            //    constexpr mp_list<
+            //        _Info,                                                                   //static constexpr size_t information_index = 0;
+            //        std::integral_constant<size_t, _Idx>,                                    //static constexpr size_t overload_index = 1;
+            //        expected_types,                                                            //static constexpr size_t expected_parameter_overload_type_index = 2;        // the type-list of the selected overload WITH default-params
+            //        defaulted_types,                                                       //static constexpr size_t default_info_type_index = 3;        // the original secification of the selected overload with default-info
+            //        expanded_types,                                                        //static constexpr size_t actual_parameter_overload_type_index = 4;     // the type-list of the selected overload
+            //        mp_list<T...>,                                                           //static constexpr size_t deduced_local_parameter_overload_type_index = 5;     // the local deduced types
+            //        typename deduction_helper<mp_list<T...>, expanded_types>::deduced_t    //static constexpr size_t deduced_parameter_overload_type_index = 6;     // the (global) deduced types
+            //    > test(typename unpack_replace_tmpl<typename _ArgTys::expanded_type, T>::type...) const;
         };
 
 
@@ -840,9 +895,9 @@ namespace hop {
         // helper-template to store argument-type info
         template <class _Expanded, class _Expected, class _Defaulted>
         struct argument_t {
-            using expanded_type = _Expanded;        // type validated against actual paramters
-            using expected_type = _Expected;        // type expected inside the function
-            using defaulted_type = _Defaulted;      // kind of defaulted type
+            using expanded_type_list = _Expanded;        // type validated against actual paramters
+            using expected_type_list = _Expected;        // type expected inside the function
+            using defaulted_type_list = _Defaulted;      // kind of defaulted type
         };
 
         // helper-types for debugging-purposes (all synonyms for mp_list)
@@ -853,7 +908,7 @@ namespace hop {
         struct _expand_current {
             static_assert(_arg_count == 1);
 
-            using argument_type = argument_t<_Ty, _Ty, _Ty>;
+            using argument_type = argument_t<mp_list<_Ty>, mp_list<_Ty>, mp_list<_Ty>>;
             using single_type = mp_list<argument_type>;                 // generated argument-list
             using type = mp_list<single_type>;                          // generated argument-lists
 
@@ -872,8 +927,8 @@ namespace hop {
         struct _expand_current<_arg_count, repeat<_Ty, _min, _max>, typename std::enable_if<!is_hop_type_builder< _Ty>::value>::type> {
             static_assert(_arg_count >= _min && _arg_count <= _max);
 
-            using argument_type = argument_t<_Ty, _Ty, _Ty>;
-            using single_type = mp_repeat_c<mp_list<argument_type>, _arg_count>;    // generated argument-list
+            using argument_type = argument_t< mp_repeat_c<mp_list<_Ty>, _arg_count>, mp_repeat_c<mp_list<_Ty>, _arg_count>, mp_repeat_c<mp_list<_Ty>, _arg_count>>;
+            using single_type = mp_list<argument_type>;    // generated argument-list
             using type = mp_list<single_type>;                                      // generated argument-lists
 
             //using single_type = mp_repeat_c<mp_list<_Ty>, _arg_count>;
@@ -998,14 +1053,14 @@ namespace hop {
             static_assert(_arg_count <= 1);
     
             using argument_type = argument_t<
-                _Ty,
+                mp_repeat_c<mp_list<_Ty>, _arg_count>,
                 mp_if_c< _arg_count == 1,
-                    _Ty,
-                    cpp_defaulted_param<_Ty, _Init>
+                    mp_list<_Ty>,
+                    mp_list<cpp_defaulted_param<_Ty, _Init>>
                 >,
-                defaulted_type_t<cpp_defaulted_param<_Ty, _Init>, _arg_count == 1, false>
+                mp_list<defaulted_type_t<cpp_defaulted_param<_Ty, _Init>, _arg_count == 1, false>>
             >;
-            using single_type = mp_repeat_c<mp_list<argument_type>, _arg_count>;    // generated argument-list
+            using single_type = mp_list<argument_type>;    // generated argument-list
             using type = mp_list<single_type>;                                      // generated argument-lists
 
             //
@@ -1022,26 +1077,30 @@ namespace hop {
         template <size_t _arg_count, class _Ty, class _Init>
         struct _expand_current<_arg_count, general_defaulted_param<_Ty, _Init>> {
             static_assert(_arg_count <= 1);
+
             using argument_type = argument_t<
-                _Ty,
+                mp_repeat_c<mp_list<_Ty>, _arg_count>,
                 mp_if_c< _arg_count == 1,
-                _Ty,
-                general_defaulted_param<_Ty, _Init>
+                mp_list<_Ty>,
+                mp_list<general_defaulted_param<_Ty, _Init>>
                 >,
-                defaulted_type_t<general_defaulted_param<_Ty, _Init>, _arg_count == 1, true>
+                mp_list<defaulted_type_t<general_defaulted_param<_Ty, _Init>, _arg_count == 1, true>>
             >;
-            using single_type = mp_repeat_c<mp_list<argument_type>, _arg_count>;    // generated argument-list
+            using single_type = mp_list<argument_type>;    // generated argument-list
             using type = mp_list<single_type>;                                      // generated argument-lists
 
-
-            //using single_type = mp_repeat_c<mp_list<_Ty>, _arg_count>;
-            //using expanded_type = mp_list<single_type>;          // type validated against actual paramters
-            //using expected_type = mp_if_c< _arg_count == 1,
-            //    expanded_type,
-            //    mp_list<mp_list<general_defaulted_param<_Ty, _Init>>>
+            //using argument_type = argument_t<
+            //    _Ty,
+            //    mp_if_c< _arg_count == 1,
+            //    _Ty,
+            //    general_defaulted_param<_Ty, _Init>
+            //    >,
+            //    defaulted_type_t<general_defaulted_param<_Ty, _Init>, _arg_count == 1, true>
             //>;
+            //using single_type = mp_repeat_c<mp_list<argument_type>, _arg_count>;    // generated argument-list
+            //using type = mp_list<single_type>;                                      // generated argument-lists
 
-            //using defaulted_type = mp_list<mp_list<defaulted_t<_arg_count == 1, true>>>;
+
         };
 
 
