@@ -998,7 +998,7 @@ namespace ns_test_21 {
     // a homogenous pack
 
     //using overloads_t = hop::ol_list <
-    //    hop::ol<hop::pack<hop::group<int, std::string>>>     // accept a (possibly empty) list of ints
+    //    hop::ol<hop::pack<hop::seq<int, std::string>>>     // accept a (possibly empty) list of ints
     //>;
 
     //template<typename... Ts, decltype((hop::enable<overloads_t, Ts...>()), 0) = 0 >

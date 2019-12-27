@@ -68,8 +68,8 @@ And here we are at the core of the problem: when we have multiple functions defi
 With __hop__ we define only a single overload of `foo` but with a quite sophisticated SFINAE condition:
 ```
 using overloads = hop::ol_list <
-	hop::ol<hop::non_empty_pack<int>>,
-	hop::ol<hop::non_empty_pack<double>>
+    hop::ol<hop::non_empty_pack<int>>,
+    hop::ol<hop::non_empty_pack<double>>
 >;
 
 
@@ -79,37 +79,37 @@ void foo(Ts&& ... ts) {
 ```
 Now, we can call `foo` the same way we did for the traditional (bounded) overload-sets:
 ```
-	foo(42, 17);
-	foo(1.5, -0.4, 12.0);
-	foo(42, 0.5);			// error: ambigous
+    foo(42, 17);
+    foo(1.5, -0.4, 12.0);
+    foo(42, 0.5);           // error: ambigous
 ```
 Let's see what we can do inside of `foo`. The type `decltype(hop::enable<overloads, Ts...>())` holds information about the selected overload, e.g. its zero-based `index`:
 ```
 using overloads = hop::ol_list <
-	hop::ol<int, hop::non_empty_pack<int>>,
-	hop::ol<double, hop::non_empty_pack<double>>
+    hop::ol<int, hop::non_empty_pack<int>>,
+    hop::ol<double, hop::non_empty_pack<double>>
 >;
 
 template<typename Out, typename T>
 void output_as(T&& t) {
-	std::cout << (Out)t << std::endl;
+    std::cout << (Out)t << std::endl;
 }
 
 template<typename... Ts, decltype((hop::enable<overloads, Ts...>()), 0) = 0 >
 void foo(Ts&& ... ts) {
-	using OL = decltype(hop::enable<overloads, Ts...>());
+    using OL = decltype(hop::enable<overloads, Ts...>());
 
-	if constexpr (hop::index<OL>::value == 0) {
-		std::cout << "got a bunch of ints\n";
-		(output_as<int>(ts),...);
-		std::cout << std::endl;
-	} 
-	else
-	if constexpr (hop::index<OL>::value == 1) {
-		std::cout << "got a bunch of doubles\n";
-		(output_as<double>(ts), ...);
-		std::cout << std::endl;
-	}
+    if constexpr (hop::index<OL>::value == 0) {
+        std::cout << "got a bunch of ints\n";
+        (output_as<int>(ts),...);
+        std::cout << std::endl;
+    } 
+    else
+    if constexpr (hop::index<OL>::value == 1) {
+        std::cout << "got a bunch of doubles\n";
+        (output_as<double>(ts), ...);
+        std::cout << std::endl;
+    }
 }
 ```
 output
@@ -129,21 +129,21 @@ struct tag_ints {};
 struct tag_doubles {};
 
 using overloads = hop::ol_list <
-	hop::tagged_ol<tag_ints, hop::non_empty_pack<int>>,
-	hop::tagged_ol<tag_doubles, hop::non_empty_pack<double>>
+    hop::tagged_ol<tag_ints, hop::non_empty_pack<int>>,
+    hop::tagged_ol<tag_doubles, hop::non_empty_pack<double>>
 >;
 
 template<typename... Ts, decltype((hop::enable<overloads, Ts...>()), 0) = 0 >
 void foo(Ts&& ... ts) {
-	using OL = decltype(hop::enable<overloads, Ts...>());
+    using OL = decltype(hop::enable<overloads, Ts...>());
 
-	if constexpr (hop::has_tag<OL, tag_ints>::value) {
+    if constexpr (hop::has_tag<OL, tag_ints>::value) {
       // ...
-	} 
-	else
-	if constexpr (hop::has_tag<OL, tag_doubles>::value) {
+    } 
+    else
+    if constexpr (hop::has_tag<OL, tag_doubles>::value) {
       // ...
-	}
+    }
 }
 ```
 We can also tag types of an overload. This is useful, when we want to access the argument(s) belonging to a certain type of the overload: 
@@ -153,35 +153,39 @@ struct tag_double {};
 struct tag_numeric {};
 
 using overloads = hop::ol_list <
-	hop::tagged_ol<tag_ints, std::string, hop::non_empty_pack<hop::tagged_ty<tag_numeric, int>>>,
-	hop::tagged_ol<tag_doubles, std::string, hop::non_empty_pack<hop::tagged_ty<tag_numeric, double>>>
+    hop::tagged_ol<tag_ints, std::string, hop::non_empty_pack<hop::tagged_ty<tag_numeric, int>>>,
+    hop::tagged_ol<tag_doubles, std::string, hop::non_empty_pack<hop::tagged_ty<tag_numeric, double>>>
 >;
 
 template<typename... Ts, decltype((hop::enable<overloads, Ts...>()), 0) = 0 >
 void foo(Ts&& ... ts) {
-	using OL = decltype(hop::enable<overloads, Ts...>());
+    using OL = decltype(hop::enable<overloads, Ts...>());
 
-	if constexpr (hop::has_tag<OL, tag_ints>::value) {
-	      auto&& numeric_args = hop::get_tagged_args<OL, tag_numeric>(std::forward<Ts>(ts)...);
-	      // numeric_args is a std::tuple containing all the int args
-	      // ...
-	} 
-	else
-	if constexpr (hop::has_tag<OL, tag_doubles>::value) {
-		auto&& numeric_args = hop::get_tagged_args<OL, tag_numeric>(std::forward<Ts>(ts)...);
-	 	// numeric_args is a std::tuple containing all the double args
-		// ...
-	}
+    if constexpr (hop::has_tag<OL, tag_ints>::value) {
+          auto&& numeric_args = hop::get_tagged_args<OL, tag_numeric>(std::forward<Ts>(ts)...);
+          // numeric_args is a std::tuple containing all the int args
+          // ...
+    } 
+    else
+    if constexpr (hop::has_tag<OL, tag_doubles>::value) {
+        auto&& numeric_args = hop::get_tagged_args<OL, tag_numeric>(std::forward<Ts>(ts)...);
+        // numeric_args is a std::tuple containing all the double args
+        // ...
+    }
 }
 ```
 
 Up to now, we can create non-empty homogeneous overloads for specific types. Let's see what else we can do with __hop__.
 A single overload `hop::ol<...>` consists of a list of types that are:
 - normal C++ types, like `int`, `vector<string>`, user-defined types, which may be qualified. Those types are matched as if they were types of function arguments.
-- `hop::repeat<T, min>`, `hop::repeat<T, min, max>` at least `min` (and up to `max`) times the type `T`. If `max` is not specified, then `repeat` is unbounded. Multiple `repeat`s (even unbounded) in a single overload are possible! Also all other types/type-constructs after `repeat` are possible.
+- `hop::repeat<T, min>`, `hop::repeat<T, min, max>` at least `min` (and up to `max`) times the argument-list generated by `T`. If `max` is not specified, then `repeat` is unbounded. Multiple `repeat`s (even unbounded) in a single overload are possible! Also all other types/type-constructs after `repeat` are possible.
 - `hop::pack<T>` or `hop::non_empty_pack<T>` are aliases for `hop::repeat<T, 0>` resp. `hop::repeat<T, 1>`.
-- `hop::cpp_defaulted_param<T, _Init = default_init<T>>`, creates an argument of type `T` or nothing. `hop::cpp_defaulted_param` creates a C++-style defult-param: types following a `hop::cpp_defaulted_param` must also be a `hop::cpp_defaulted_param`
-- `hop::general_defaulted_param<T, _Init = default_init<T>>`, creates an argument of type `T` or nothing. `hop::general_defaulted_param` can appear in any position of the type-list
+- `hop::optional<T>` is an alias for `hop::repeat<T, 0, 1>`
+- `hop::eps` is a typedef for `hop::repeat<char, 0, 0>` (it consumes no argument)
+- `hop::seq<T1,...,TN>` appends the argument-lists generated by `T1`, ... , `TN`
+- `hop::alt<T1,...,TN>` generates the argument-lists for `T1`, ... , `TN` and handles each as a separate case
+- `hop::cpp_defaulted_param<T, _Init = default_init<T>>` creates an argument of type `T` or nothing. `hop::cpp_defaulted_param` creates a C++-style defult-param: types following a `hop::cpp_defaulted_param` must also be a `hop::cpp_defaulted_param`
+- `hop::general_defaulted_param<T, _Init = default_init<T>>` creates an argument of type `T` or nothing. `hop::general_defaulted_param` can appear in any position of the type-list
 - `hop::fwd` is a place holder for a *forwarding-reference* and accepts any type
 - `hop::fwd_if<template<class> class _If>` is a *forwarding-reference* with SFINAE condition applied to the actual parameter type
 - `hop::adapt` adapts an existing function as an overload: `hop::adapt<decltype(bar), bar>`
@@ -261,13 +265,13 @@ A single overload `hop::ol<...>` consists of a list of types that are:
 - Types can be tagged with `hop::tagged_ty<tag_type, T>` for accessing the arguments of an overload
 - finally, the following variations of `hop::ol<...>`:
   ```
-	template<template<class...> class _If, class... _Ty>
-	using ol_if;
+    template<template<class...> class _If, class... _Ty>
+    using ol_if;
   ```
   and
   ```
-	template<class _Tag, template<class...> class _If, class... _Ty>
-	using tagged_ol_if;
+    template<class _Tag, template<class...> class _If, class... _Ty>
+    using tagged_ol_if;
   ```
   allow to specify an additional SFINAE-condition which is applied to the actual parameter type pack. There is also version `tagged_ol_if_q` with expects a quoted meta-function as SFINAE-condition.
 

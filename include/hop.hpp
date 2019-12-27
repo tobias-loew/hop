@@ -138,11 +138,11 @@ namespace hop {
 
     // grouping a type-sequence
     template<class... _Tys>
-    struct group;
+    struct seq;
 
     // alternative types
     template<class... _Tys>
-    struct alternatives;
+    struct alt;
 
 
     // template to create a parameter with default value (C++-style defaulted parameter, only at end of parameter list)
@@ -562,17 +562,17 @@ namespace hop {
 
 
         template<class T>
-        struct is_group : mp_false {};
+        struct is_seq : mp_false {};
 
         template<class... Ts>
-        struct is_group<group<Ts...>> : mp_true {};
+        struct is_seq<seq<Ts...>> : mp_true {};
 
 
         template<class T>
-        struct is_alternatives : mp_false {};
+        struct is_alt : mp_false {};
 
         template<class... Ts>
-        struct is_alternatives<alternatives<Ts...>> : mp_true {};
+        struct is_alt<alt<Ts...>> : mp_true {};
 
 
         template<class _Ty>
@@ -580,8 +580,8 @@ namespace hop {
             is_repeat<_Ty>,
             is_defaulted_param<_Ty>,
             is_general_defaulted_param<_Ty>,
-            is_group<_Ty>,
-            is_alternatives<_Ty>
+            is_seq<_Ty>,
+            is_alt<_Ty>
         > {};
 
         // template to tag a type
@@ -726,17 +726,17 @@ namespace hop {
 
 
         template<class _Tag, class... _Tys>
-        struct _arg_count<_Tag, group<_Tys...>> {
+        struct _arg_count<_Tag, seq<_Tys...>> {
             static constexpr size_t value = (_arg_count<_Tag, _Tys>::value + ... + 0);
         };
 
         template<class... _Tys>
-        struct _arg_count<tag_args_min, alternatives<_Tys...>> {
+        struct _arg_count<tag_args_min, alt<_Tys...>> {
             static constexpr size_t value = std::min({ _arg_count<tag_args_min, _Tys>::value... });
         };
 
         template<class... _Tys>
-        struct _arg_count<tag_args_max, alternatives<_Tys...>> {
+        struct _arg_count<tag_args_max, alt<_Tys...>> {
             static constexpr size_t value = std::max({ _arg_count<tag_args_max, _Tys>::value... });
         };
 
@@ -936,7 +936,7 @@ namespace hop {
 
 
         template<size_t _arg_count, class... _Tys>
-        struct _expand_current<_arg_count, group<_Tys...>> {
+        struct _expand_current<_arg_count, seq<_Tys...>> {
 
             using type = typename _expand_overload_set_impl<_arg_count, mp_list<_Tys...>>::type;
         };
@@ -945,9 +945,9 @@ namespace hop {
 
 
         template<size_t _arg_count, class... _Tys>
-        struct _expand_current<_arg_count, alternatives<_Tys...>> {
+        struct _expand_current<_arg_count, alt<_Tys...>> {
 
-            struct build_alternatives {
+            struct build_alt {
 
                 template<class T>
                 using fn = typename _expand_overload_set_impl< _arg_count, mp_list<T>>::type;
@@ -957,7 +957,7 @@ namespace hop {
             // the result
             using type_list =
                 mp_transform_q<
-                build_alternatives,
+                build_alt,
                 mp_list<_Tys...>
                 >;
 
