@@ -277,7 +277,7 @@ A single overload `hop::ol<...>` consists of a list of types that are:
 
 All overloads for a single function are gathered in a `hop::ol_list<...>`
 
-The following **EBNF** discribes how to build argument-lists for overload-sets:
+The following **EBNF** describes how to build argument-lists for overload-sets:
 <pre><code>
 Type =  
     <i>any C++ type, that is not a hop type-builder</i>
