@@ -119,6 +119,9 @@ namespace hop {
 
     // syntactic sugar
 
+    // type to create no parameter
+    using eps = repeat<char, 0, 0>;
+
     // template to create an optional parameter (WITHOUT default value)
     template<class _Ty>
     using optional = repeat<_Ty, 0, 1>;
