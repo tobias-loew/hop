@@ -20,6 +20,8 @@
 #include <boost/mp11.hpp>
 #include <boost/preprocessor.hpp>
 
+#define HOP_ENABLE_REPEAT_OPTIMIZATION
+
 #ifndef HOP_MAX_DEDUDCABLE_TYPES
 #define HOP_MAX_DEDUDCABLE_TYPES 10
 #endif
@@ -323,11 +325,8 @@ namespace hop {
 #undef HOP_MACRO_DEDUCER_T_TEST
 
 
-                template<template<class> class lazy_expander>
-            static mp_list<std::false_type, mp_list<>> test(...) {
-                using t = typename debug<typename lazy_expander<Pattern_q>::type>::type;
-                return{};
-            }
+            template<template<class> class lazy_expander>
+            static mp_list<std::false_type, mp_list<>> test(...);
 
             template<class... Tys>
             using fn = mp_first<decltype(test<lazy_expand>(std::declval<Tys>()...))>;
@@ -811,8 +810,7 @@ namespace hop {
             using type = mp_list<single_type>;                          // generated argument-lists
         };
 
-#define ENABLE_REPEAT_OPTIMIZATION
-#if defined(ENABLE_REPEAT_OPTIMIZATION)
+#if defined(HOP_ENABLE_REPEAT_OPTIMIZATION)
         // speed-up the simple cases
         template<size_t _arg_count, class _Ty, size_t _min, size_t _max>
         struct _expand_current<_arg_count, repeat<_Ty, _min, _max>, typename std::enable_if<!is_hop_type_builder< _Ty>::value>::type> {
@@ -828,7 +826,7 @@ namespace hop {
         // general case for 0
         template<class _Ty, size_t _min, size_t _max>
         struct _expand_current<0, repeat<_Ty, _min, _max>
-#if defined(ENABLE_REPEAT_OPTIMIZATION)
+#if defined(HOP_ENABLE_REPEAT_OPTIMIZATION)
             , typename std::enable_if<is_hop_type_builder< _Ty>::value>::type
 #endif
         > {
@@ -836,10 +834,7 @@ namespace hop {
 
             static_assert(_arg_count >= _min && _arg_count <= _max);
 
-            using single_type = mp_list<>;
-            using expanded_type = mp_list<single_type>;          // type validated against actual paramters
-            using expected_type = expanded_type;
-            using defaulted_type = mp_list<mp_list<_Ty>>;
+            using type = mp_list<mp_list<>>;                                      // generated argument-lists
         };
 
 
@@ -847,7 +842,7 @@ namespace hop {
         // induction case for i + 1
         template<size_t _arg_count, class _Ty, size_t _min, size_t _max>
         struct _expand_current<_arg_count, repeat<_Ty, _min, _max>
-#if defined(ENABLE_REPEAT_OPTIMIZATION)
+#if defined(HOP_ENABLE_REPEAT_OPTIMIZATION)
             , typename std::enable_if<is_hop_type_builder< _Ty>::value>::type
 #endif
         > {
@@ -889,49 +884,21 @@ namespace hop {
             // for each args_used build product of first_type x rest_type
             // append all of them
 
-            template<class... T>
-            using inner_append = mp_transform<mp_append, T...>;
-
-            template<class T>
-            using apply_inner_append = mp_apply<inner_append, T>;
-
             struct build_product {
 
                 template<class T>
                 using fn =
-                    mp_transform<apply_inner_append, mp_product<mp_list, first_type<T::value>, debug<rest_type<T::value>>>>;
-                //mp_transform<mp_flatten, mp_product<mp_list, debug<rest_type<T::value>>, first_type<T::value>>>;
-
-
-
-                                //template<class T>
-                                //using fn_ =
-                                //    //                debug<
-                                //    mp_transform<mp_list,
-                                //    mp_transform<mp_flatten, mp_product<mp_list, mp_first<debug<first_type<T::value>>>,  mp_first<rest_type<T::value>>>>,
-                                //    mp_transform<mp_flatten, mp_product<mp_list, mp_second<first_type<T::value>>, mp_second<rest_type<T::value>>>>,
-                                //    mp_transform<mp_flatten, mp_product<mp_list, mp_third<first_type<T::value>>,  mp_third<rest_type<T::value>>>>
-                                //    //              >
-                                //    >;
-
+                    mp_product<mp_append, first_type<T::value>, rest_type<T::value>>;
             };
 
 
             // the result
-            using type_list =
+            using type =
+                mp_flatten <
                 mp_transform_q<
                 build_product,
                 valid_arg_counts
-                >;
-
-
-            using types_expanded = mp_fold< type_list, mp_list<>, mp_append>;
-
-
-            using expanded_type = mp_list<mp_first<mp_first<types_expanded>>>;          // type validated against actual paramters
-            using expected_type = mp_list<mp_second< mp_first<types_expanded>>>;          // type validated against actual paramters
-            using defaulted_type = mp_list<mp_list<_Ty>>;
-
+                >>;
         };
 
         template <size_t _arg_count, class _Ty, class _Init>
@@ -946,8 +913,8 @@ namespace hop {
                 >,
                 mp_list<defaulted_type_t<cpp_defaulted_param<_Ty, _Init>, _arg_count == 1, false>>
             >;
-            using single_type = mp_list<argument_type>;    // generated argument-list
-            using type = mp_list<single_type>;                                      // generated argument-lists
+            using single_type = mp_list<argument_type>;     // generated argument-list
+            using type = mp_list<single_type>;              // generated argument-lists
         };
 
         template <size_t _arg_count, class _Ty, class _Init>
@@ -962,8 +929,8 @@ namespace hop {
                 >,
                 mp_list<defaulted_type_t<general_defaulted_param<_Ty, _Init>, _arg_count == 1, true>>
             >;
-            using single_type = mp_list<argument_type>;    // generated argument-list
-            using type = mp_list<single_type>;                                      // generated argument-lists
+            using single_type = mp_list<argument_type>;     // generated argument-list
+            using type = mp_list<single_type>;              // generated argument-lists
         };
 
 
@@ -971,11 +938,7 @@ namespace hop {
         template<size_t _arg_count, class... _Tys>
         struct _expand_current<_arg_count, group<_Tys...>> {
 
-            using types_expanded = typename _expand_overload_set_impl<_arg_count, mp_list<_Tys...>>::type;
-
-            using expanded_type = mp_list<mp_first<mp_first<types_expanded>>>;          // type validated against actual paramters
-            using expected_type = mp_list<mp_second< mp_first<types_expanded>>>;          // type validated against actual paramters
-            using defaulted_type = expanded_type;
+            using type = typename _expand_overload_set_impl<_arg_count, mp_list<_Tys...>>::type;
         };
 
 

@@ -977,7 +977,7 @@ namespace ns_test_20 {
         if constexpr (hop::is_adapted_v<OL>) {
             return hop::forward_adapted<OL>(std::forward<Ts>(ts)...);
         } else {
-            using t = hop::debug<boost::mp11::mp_first<OL>>;
+            using t = boost::mp11::mp_first<OL>;
 
         }
     }
