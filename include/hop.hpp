@@ -148,12 +148,19 @@ namespace hop {
     // template to create a parameter with default value (C++-style defaulted parameter, only at end of parameter list)
     namespace impl {
         template<class _Ty>
-        struct default_create {
-            constexpr decltype(auto) operator()() const { return _Ty{}; }
+        struct remove_tag {
+            using type = _Ty;
         };
+
         template<class _Tag, class _Ty>
-        struct default_create< tagged_ty<_Tag, _Ty>> {
-            constexpr decltype(auto) operator()() const { return _Ty{}; }
+        struct remove_tag<tagged_ty<_Tag, _Ty>> {
+            using type = typename remove_tag<_Ty>::type;
+        };
+
+
+        template<class _Ty>
+        struct default_create {
+            constexpr decltype(auto) operator()() const { return typename remove_tag<_Ty>::type{}; }
         };
     }
 
@@ -1274,50 +1281,38 @@ namespace hop {
     namespace impl {
         struct not_a_tag;
 
-        template<class T>
-        struct get_tag {
-            using type = not_a_tag;
-        };
+        template<class _Test, class T>
+        struct has_tag_impl :std::false_type{};
 
-        template<class _Tag, class _Ty>
-        struct get_tag<tagged_ty<_Tag, _Ty>> {
-            using type = _Tag;
-        };
+        template<class _Test, class _Tag, class _Ty>
+        struct has_tag_impl<_Test, tagged_ty<_Tag, _Ty>>:std::disjunction< std::is_same<_Test, _Tag>, has_tag_impl<_Test, _Ty>>{};
 
-        template<class _Ty, size_t _min, size_t _max>
-        struct get_tag<repeat<_Ty, _min, _max>> {
-            using type = typename get_tag<_Ty>::type;
-        };
+        template<class _Test, class _Ty, size_t _min, size_t _max>
+        struct has_tag_impl<_Test, repeat<_Ty, _min, _max>>:has_tag_impl<_Test, _Ty> {};
 
-        template<class _Ty, class _Init>
-        struct get_tag<cpp_defaulted_param<_Ty, _Init>> {
-            using type = typename get_tag<_Ty>::type;
-        };
+        template<class _Test, class _Ty, class _Init>
+        struct has_tag_impl<_Test, cpp_defaulted_param<_Ty, _Init>> :has_tag_impl<_Test, _Ty> {};
 
-        template<class _Ty, class _Init>
-        struct get_tag<general_defaulted_param<_Ty, _Init>> {
-            using type = typename get_tag<_Ty>::type;
-        };
+        template<class _Test, class _Ty, class _Init>
+        struct has_tag_impl<_Test, general_defaulted_param<_Ty, _Init>> :has_tag_impl<_Test, _Ty> {};
 
 
         // specialization used in get_tagged_arg_or
-        template<class _Ty, bool _specified, bool _general>
-        struct get_tag<defaulted_type_t<_Ty, _specified, _general>> {
-            using type = typename get_tag<_Ty>::type;
-        };
+        template<class _Test, class _Ty, bool _specified, bool _general>
+        struct has_tag_impl<_Test, defaulted_type_t<_Ty, _specified, _general>> :has_tag_impl<_Test, _Ty> {};
 
 
 
         template<class _Tag>
         struct has_tag {
             template<class T>
-            using fn = std::is_same<_Tag, typename get_tag<T>::type>;
+            using fn = has_tag_impl<_Tag, T>;
         };
 
         template<class _Tag>
         struct first_has_tag {
             template<class T>
-            using fn = std::is_same<_Tag, typename get_tag<mp_first<T>>::type>;
+            using fn = has_tag_impl<_Tag, mp_first<T>>;
         };
 
 
