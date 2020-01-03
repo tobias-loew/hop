@@ -109,14 +109,28 @@ namespace hop {
     // template to create a repeated [min, .. , max] parameter
     static constexpr size_t infinite = std::numeric_limits<size_t>::max();
 
-
+    // repetition
     template<class _Ty, size_t _min, size_t _max = infinite>
     struct repeat;
+
+
+    // grouping a type-sequence
+    template<class... _Tys>
+    struct seq;
+
+    // alternative types
+    template<class... _Tys>
+    struct alt;
+
 
 
     // template to tag a type
     template<class _Tag, class _Ty>
     struct tagged_ty;
+
+    // template to gather a parameter-list
+    template<class _Tag, class _Ty>
+    struct gather;
 
 
     // syntactic sugar
@@ -136,16 +150,8 @@ namespace hop {
     template<class _Ty>
     using non_empty_pack = repeat<_Ty, 1, infinite>;
 
-    // grouping a type-sequence
-    template<class... _Tys>
-    struct seq;
 
-    // alternative types
-    template<class... _Tys>
-    struct alt;
-
-
-    // template to create a parameter with default value (C++-style defaulted parameter, only at end of parameter list)
+    // template access parameter-type in tagged_ty
     namespace impl {
         template<class _Ty>
         struct remove_tag {
@@ -156,8 +162,10 @@ namespace hop {
         struct remove_tag<tagged_ty<_Tag, _Ty>> {
             using type = typename remove_tag<_Ty>::type;
         };
+    }
 
-
+    // template to create a parameter with default value (C++-style defaulted parameter, only at end of parameter list)
+    namespace impl {
         template<class _Ty>
         struct default_create {
             constexpr decltype(auto) operator()() const { return typename remove_tag<_Ty>::type{}; }
@@ -366,7 +374,7 @@ namespace hop {
     using deduce = tmpl_q< impl::deduction_pattern<Pattern>>;
 
     namespace impl {
-        template<class F, F & f>
+        template<auto&& f>
         struct adapter {
             template<class... Ts>
             static decltype(f(std::declval<Ts>()...)) forward(Ts&&... ts) {
@@ -582,16 +590,23 @@ namespace hop {
         struct is_alt<alt<Ts...>> : mp_true {};
 
 
+        template<class T>
+        struct is_gather : mp_false {};
+
+        template<class _Tag, class _Ty>
+        struct is_gather<gather<_Tag, _Ty>> : mp_true {};
+
+
         template<class _Ty>
         struct is_hop_type_builder : mp_or<
             is_repeat<_Ty>,
             is_defaulted_param<_Ty>,
             is_general_defaulted_param<_Ty>,
             is_seq<_Ty>,
-            is_alt<_Ty>
+            is_alt<_Ty>,
+            is_gather<_Ty>
         > {};
 
-        // template to tag a type
         template<class _Tag, class _Ty>
         struct is_hop_type_builder<tagged_ty<_Tag, _Ty>> : is_hop_type_builder<_Ty> {};
 
@@ -745,6 +760,11 @@ namespace hop {
         template<class... _Tys>
         struct _arg_count<tag_args_max, alt<_Tys...>> {
             static constexpr size_t value = std::max({ _arg_count<tag_args_max, _Tys>::value... });
+        };
+
+        template<class _Tag, class _TyTag, class _Ty>
+        struct _arg_count<_Tag, gather<_TyTag, _Ty>> {
+            static constexpr size_t value = _arg_count<_Ty>::value;
         };
 
 
@@ -1573,11 +1593,11 @@ namespace hop {
     using adapted = tagged_adapted<impl::none_tag, Adapter>;
 
 
-    template<class F, F & f>
-    using adapt = adapted<impl::adapter<F, f>>;
+    template<auto&& f>
+    using adapt = adapted<impl::adapter<f>>;
 
-    template<class _Tag, class F, F & f>
-    using tagged_adapt = tagged_adapted<_Tag, impl::adapter<F, f>>;
+    template<class _Tag, auto&& f>
+    using tagged_adapt = tagged_adapted<_Tag, impl::adapter<f>>;
 
 
     template<class _Overload_Type_set, typename... _Tys>

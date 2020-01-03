@@ -188,7 +188,7 @@ A single overload `hop::ol<...>` consists of a list of types that are:
 - `hop::general_defaulted_param<T, _Init = default_init<T>>` creates an argument of type `T` or nothing. `hop::general_defaulted_param` can appear in any position of the type-list
 - `hop::fwd` is a place holder for a *forwarding-reference* and accepts any type
 - `hop::fwd_if<template<class> class _If>` is a *forwarding-reference* with SFINAE condition applied to the actual parameter type
-- `hop::adapt` adapts an existing function as an overload: `hop::adapt<decltype(bar), bar>`
+- `hop::adapt` adapts an existing function as an overload: `hop::adapt<bar>`
 - `hop::adapted` can be used to adapt existing overload-sets or templates:
   ```
   
@@ -209,7 +209,7 @@ A single overload `hop::ol<...>` consists of a list of types that are:
     };
     
     using overloads_t = hop::ol_list <
-      hop::adapt<decltype(bar), bar>,
+      hop::adapt<bar>,
       hop::adapted<adapt_qux>
     >;
     
@@ -262,7 +262,10 @@ A single overload `hop::ol<...>` consists of a list of types that are:
     foo(v1, v2, v3);
     ```
     `foo` matches any list of `std::vector`s. Note, that this cannot be achived with global-deduction as the number of deduced-types is variable.  
-- Types can be tagged with `hop::tagged_ty<tag_type, T>` for accessing the arguments of an overload
+- types can be tagged with `hop::tagged_ty<tag_type, T>` for accessing the arguments of an overload
+- argument-lists can be *gathered* with `hop::gather<tag_type, L>` where `L` is a list build with the above constructors.
+  `gather` does not affect the generated argument-list but gathers it's content into a single `std::tuple` when accessing the actual parameters.
+  Additionally, `gather` is tagged to distinguish different gatherings
 - finally, the following variations of `hop::ol<...>`:
   ```
     template<template<class...> class _If, class... _Ty>
@@ -285,7 +288,7 @@ CppType =
 
 Type =  
     CppType
-    | tagged_ty&lt;<i>tag</i>, CppType> 
+    | tagged_ty&lt;<i>tag</i>, Type> 
     ;
 
 ArgumentList =
@@ -297,6 +300,7 @@ ArgumentList =
     | general_defaulted_param&lt;Type, <i>init</i>> 
     | fwd
     | fwd_if&lt;<i>condition</i>>
+    | gather&lt;<i>tag</i>, ArgumentList> 
 </code></pre>
 
 Inside a function `hop` provides several templates and functions for inspecting the current overload and accessing function arguments:

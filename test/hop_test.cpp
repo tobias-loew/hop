@@ -10,6 +10,7 @@
 // For more information, see https://github.com/tobias-loew/hop
 //
 
+#define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -25,76 +26,78 @@
 auto&& os = std::ofstream("hop_out.txt");
 
 template<class T>
-struct tag_t { constexpr tag_t() {} };
+struct tag_t { 
+    using type = T;
+    constexpr tag_t() {}
+};
 
-template<class T>
-auto printer(tag_t<T>) {
-    return [](auto&& t)->decltype(auto) {
-        return std::forward<decltype(t)>(t);
-    };
-}
 
 std::string ws_to_s(std::wstring const& ws) {
-    // use very simple ws to s converter (I know it has it's problems...)
+    // use very simple ws to s converter (it's deprecated, but works for our purposes)
     return std::wstring_convert<std::codecvt_utf8<wchar_t>>().to_bytes(ws);
 }
 
 
-auto printer(tag_t<std::wstring>) {
-    return [](std::wstring const& s) {return ws_to_s(s); };
+template<class T, std::enable_if_t<boost::mp11::mp_similar<tag_t<int>, T>::value, int*> = nullptr>
+auto printer(T) {
+    using type = std::remove_cvref_t<typename T::type>;
+    if constexpr (std::is_same<type, std::wstring>::value) {
+        // use very simple ws to s converter (it's deprecated, but works for our purposes)
+        return [](type const& s) {return ws_to_s(s); };
+    } else if constexpr (boost::mp11::mp_similar<type, std::vector<int>>::value) {
+        return [](type const& s) {return "a"; };
+    } else if constexpr (boost::mp11::mp_similar<type, std::list<int>>::value) {
+        return [](type const& s) {return "a"; };
+    } else {
+
+        return [](auto&& t)->decltype(auto) {
+            return std::forward<decltype(t)>(t);
+        };
+    }
 }
 
-auto printer(tag_t<std::wstring&>) {
-    return [](std::wstring const& s) {return ws_to_s(s); };
-}
 
-auto printer(tag_t<std::wstring&&>) {
-    return [](std::wstring const& s) {return ws_to_s(s); };
-}
 
-auto printer(tag_t<std::wstring const&&>) {
-    return [](std::wstring const& s) {return ws_to_s(s); };
-}
-
-template<class T>
-auto printer(tag_t<std::vector<T>>) {
-    return [](std::vector<T> const& s) {return "a"; };
-}
-
-template<class T>
-auto printer(tag_t<std::vector<T>&>) {
-    return [](std::vector<T> const& s) {return "a"; };
-}
-
-template<class T>
-auto printer(tag_t<std::vector<T>&&>) {
-    return [](std::vector<T> const& s) {return "a"; };
-}
-
-template<class T>
-auto printer(tag_t<std::vector<T> const&&>) {
-    return [](std::vector<T> const& s) {return "a"; };
-}
-
-template<class T>
-auto printer(tag_t<std::list<T>>) {
-    return [](std::list<T> const& s) {return "a"; };
-}
-
-template<class T>
-auto printer(tag_t<std::list<T>&>) {
-    return [](std::list<T> const& s) {return "a"; };
-}
-
-template<class T>
-auto printer(tag_t<std::list<T>&&>) {
-    return [](std::list<T> const& s) {return "a"; };
-}
-
-template<class T>
-auto printer(tag_t<std::list<T> const&&>) {
-    return [](std::list<T> const& s) {return "a"; };
-}
+//
+//template<class T>
+//auto printer(tag_t<std::vector<T>> const&) {
+//    return [](std::vector<T> const& s) {return "a"; };
+//}
+//
+//template<class T>
+//auto printer(tag_t<std::vector<T>&>) {
+//    return [](std::vector<T> const& s) {return "a"; };
+//}
+//
+//template<class T>
+//auto printer(tag_t<std::vector<T>&&>) {
+//    return [](std::vector<T> const& s) {return "a"; };
+//}
+//
+//template<class T>
+//auto printer(tag_t<std::vector<T> const&&>) {
+//    return [](std::vector<T> const& s) {return "a"; };
+//}
+//
+//template<class T>
+//auto printer(tag_t<std::list<T>>) {
+//    return [](std::list<T> const& s) {return "a"; };
+//}
+//
+//template<class T>
+//auto printer(tag_t<std::list<T>&>) {
+//    return [](std::list<T> const& s) {return "a"; };
+//}
+//
+//template<class T>
+//auto printer(tag_t<std::list<T>&&>) {
+//    return [](std::list<T> const& s) {return "a"; };
+//}
+//
+//template<class T>
+//auto printer(tag_t<std::list<T> const&&>) {
+//    return [](std::list<T> const& s) {return "a"; };
+//}
 
 template<class T>
 decltype(auto) make_printable(T&& arg) {
@@ -967,7 +970,7 @@ namespace ns_test_20 {
     };
 
     using overloads_t = hop::ol_list <
-        hop::adapt<decltype(bar), bar>
+        hop::adapt<bar>
         , hop::adapted<adapt_qux>
     >;
 
@@ -1053,36 +1056,6 @@ namespace test {
 }
 
 int main() {
-    {
-        test::main2();
-
-        using TT = mp_list< mp_list<char, int>, mp_list<double, unsigned>>;
-
-        //using jj = hop::debug<mp_transform_q<::detail::mp_flatten_impl<mp_list<>>, TT>>;
-        using jj = mp_apply<mp_append, mp_push_front<mp_transform_q<::detail::mp_flatten_impl<mp_clear<TT>>, TT>, mp_clear<TT>>>;
-
-        using UnionTT = mp_union<TT>;
-        using UnionTT3 = mp_concat<TT>;
-        using UnionTT2 = mp_append<mp_list<char, int>, mp_list<double, unsigned>>;
-        using UnionTT4 = mp_flatten<TT>;
-
-        UnionTT tt;
-        UnionTT2 tt2;
-        UnionTT3 tt3;
-        UnionTT4 tt4;
-        int j = 42;
-        using P = mp_product<mp_list, std::tuple<char, int>, std::tuple<double, unsigned>>;
-        using pT = mp_transform < mp_append, mp_product<mp_list, std::tuple<char, int>, std::tuple<double, unsigned>>>;
-        using T = mp_first < mp_transform < mp_append, mp_product<mp_list, std::tuple<char, int>, std::tuple<double, unsigned>>>>;
-
-//        mp_first< mp_transform<mp_append, mp_product<mp_list, mp_list<mp_first<_Value>>, mp_list<typename _Unexpanded::type>>>>,
-
-        P p;
-        pT pt;
-        T t;
-        int i = 42;
-
-    }
 
 #define CALL_TEST(n)    \
     os << std::endl << "START TEST " #n << std::endl << std::endl;\
