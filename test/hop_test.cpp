@@ -13,6 +13,7 @@
 #define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <string>
 #include <locale>
 #include <codecvt> 
@@ -37,72 +38,99 @@ std::string ws_to_s(std::wstring const& ws) {
     return std::wstring_convert<std::codecvt_utf8<wchar_t>>().to_bytes(ws);
 }
 
+enum limiters {
+    bracket,
+    paren,
+    brace,
+    angle
+};
 
-template<class T, std::enable_if_t<boost::mp11::mp_similar<tag_t<int>, T>::value, int*> = nullptr>
-auto printer(T) {
-    using type = std::remove_cvref_t<typename T::type>;
+static constexpr char const* limit_symbol[][2]{
+    {"[","]"},
+    {"(",")"},
+    {"{","}"},
+    {"<",">"},
+};
+
+template<limiters limit, class T>
+std::string to_string(T&&);
+
+template<limiters limit, class T>
+std::string tuple_to_string(T&&);
+
+template<class T>
+decltype(auto) printer(T) {
+    using type = std::remove_cv_t<std::remove_reference_t<typename T::type>>;
     if constexpr (std::is_same<type, std::wstring>::value) {
         // use very simple ws to s converter (it's deprecated, but works for our purposes)
         return [](type const& s) {return ws_to_s(s); };
     } else if constexpr (boost::mp11::mp_similar<type, std::vector<int>>::value) {
-        return [](type const& s) {return "a"; };
+        return [](type const& s) { return to_string<limiters::bracket>(s); };
+    } else if constexpr (boost::mp11::mp_similar<type, std::pair<int, int>>::value) {
+        return [](type const& s) { return tuple_to_string<limiters::bracket>(s); };
+    } else if constexpr (boost::mp11::mp_similar<type, std::tuple<>>::value) {
+        return [](type const& s) { return tuple_to_string<limiters::bracket>(s); };
     } else if constexpr (boost::mp11::mp_similar<type, std::list<int>>::value) {
-        return [](type const& s) {return "a"; };
+        return [](type const& s) { return to_string<limiters::paren>(s); };
+    } else if constexpr (boost::mp11::mp_similar<type, std::set<int>>::value) {
+        return [](type const& s) { return to_string<limiters::angle>(s); };
+    } else if constexpr (boost::mp11::mp_similar<type, std::map<int, int>>::value) {
+        return [](type const& s) { return to_string<limiters::brace>(s); };
     } else {
-
         return [](auto&& t)->decltype(auto) {
             return std::forward<decltype(t)>(t);
         };
     }
 }
 
-
-
-//
-//template<class T>
-//auto printer(tag_t<std::vector<T>> const&) {
-//    return [](std::vector<T> const& s) {return "a"; };
-//}
-//
-//template<class T>
-//auto printer(tag_t<std::vector<T>&>) {
-//    return [](std::vector<T> const& s) {return "a"; };
-//}
-//
-//template<class T>
-//auto printer(tag_t<std::vector<T>&&>) {
-//    return [](std::vector<T> const& s) {return "a"; };
-//}
-//
-//template<class T>
-//auto printer(tag_t<std::vector<T> const&&>) {
-//    return [](std::vector<T> const& s) {return "a"; };
-//}
-//
-//template<class T>
-//auto printer(tag_t<std::list<T>>) {
-//    return [](std::list<T> const& s) {return "a"; };
-//}
-//
-//template<class T>
-//auto printer(tag_t<std::list<T>&>) {
-//    return [](std::list<T> const& s) {return "a"; };
-//}
-//
-//template<class T>
-//auto printer(tag_t<std::list<T>&&>) {
-//    return [](std::list<T> const& s) {return "a"; };
-//}
-//
-//template<class T>
-//auto printer(tag_t<std::list<T> const&&>) {
-//    return [](std::list<T> const& s) {return "a"; };
-//}
-
 template<class T>
 decltype(auto) make_printable(T&& arg) {
     return printer(tag_t<T>{})(std::forward<T>(arg));
 }
+
+template<limiters limit, class T>
+std::string to_string(T&& cont){
+    std::string result = limit_symbol[limit][0];
+    bool first = true;
+    for (auto&& elem : cont) {
+        if (first) {
+            first = false;
+        } else {
+            result += ",";
+        }
+        std::stringstream ss;
+        ss << make_printable(elem);
+        result += ss.str();
+    }
+    result += limit_symbol[limit][1];
+    return result;
+}
+
+
+template<limiters limit, class T>
+std::string tuple_to_string(T&& t) {
+    std::string result = limit_symbol[limit][0];
+    bool first = true;
+
+    std::apply([&](auto&&... args) {((
+
+        [&]() {
+            if (first) {
+                first = false;
+            } else {
+                result += ",";
+            }
+            std::stringstream ss;
+            ss << make_printable(args);
+            result += ss.str();
+        }()
+
+        ), ...); }, std::forward<T>(t));
+
+    result += limit_symbol[limit][1];
+    return result;
+}
+
 
 
 struct output_args_ {
@@ -112,7 +140,7 @@ struct output_args_ {
     template<class... Ts>
     void operator()(Ts&& ... ts) const {
         os << "args:" << std::endl;
-        ((os << make_printable(std::forward<Ts>(ts)) << std::endl), ...);
+        ((os << typeid(ts).name() << ": " << make_printable(std::forward<Ts>(ts)) << std::endl), ...);
         os << std::endl;
     }
 };
@@ -411,7 +439,7 @@ namespace ns_test_11 {
     using namespace boost::mp11;
 
     template<class T1, class T2>
-    struct at_least_4_byte : mp_bool<sizeof(std::remove_cvref_t<T1>) >= 4 && sizeof(std::remove_cvref_t<T2>) >= 4> {};
+    struct at_least_4_byte : mp_bool<sizeof(std::remove_cv_t<std::remove_reference_t<T1>>) >= 4 && sizeof(std::remove_cv_t<std::remove_reference_t<T2>>) >= 4> {};
 
     using overloads_t = hop::ol_list <
         hop::ol_if<at_least_4_byte, int, int>     // an int (no conversion to int)
@@ -689,102 +717,8 @@ namespace ns_test_16 {
 
 
 namespace ns_test_17 {
-    // a single overload with a single parameter
-
-    struct vector_test {
-
-        template<class T, class _Ty>
-        static boost::mp11::mp_list<_Ty, boost::mp11::mp_list<T>> test(std::vector<T>, _Ty&&);
-
-        struct no_match;
-        static boost::mp11::mp_list<no_match> test(...);
-
-        template<class T>
-        using fn = std::is_same<T, boost::mp11::mp_first<decltype(test(std::declval<T>(), std::declval<T>()))>>;
-
-        template<class T>
-        using deduced = boost::mp11::mp_second<decltype(test(std::declval<T>(), std::declval<T>()))>;
-
-    };
-
-
-    //template<template<class...> class Pattern>
-    //struct deduce {
-
-    //    template<class T, class _Ty>
-    //    static boost::mp11::mp_list<_Ty, boost::mp11::mp_list<T>> test(Pattern<T>, _Ty&&);
-
-    //    struct no_match;
-    //    static boost::mp11::mp_list<no_match> test(...);
-
-    //    template<class T>
-    //    using fn = std::is_same<T, boost::mp11::mp_first<decltype(test(std::declval<T>(), std::declval<T>()))>>;
-
-    //    template<class T>
-    //    using deduced = boost::mp11::mp_second<decltype(test(std::declval<T>(), std::declval<T>()))>;
-    //};
-
-
-    struct tag_vector;
-    struct tag_list_alloc;
-    template<class T>
-    using map_vector = std::vector<T>const&;
-    template<class T, class Alloc>
-    using map_list_alloc = std::list<T, Alloc>const&;
-
-    //template<class... T>
-    //using map_vector = std::vector<boost::mp11::mp_first<boost::mp11::mp_list<T...>>>const&;
-
-    using overloads_t = hop::ol_list <
-        //        hop::ol<hop::fwd_if_q<vector_test>>        // one std::string
-        hop::tagged_ol<tag_vector, hop::deduce<map_vector>>        // one std::string
-        //,hop::ol<int>        // one std::string
-        //,hop::tagged_ol<tag_list_alloc, hop::deduce_local<map_list_alloc>>        // one std::string
-        //hop::ol<hop::fwd_if_q<deduce<std::vector>>>        // one std::string
-        //,
-        //hop::ol<hop::fwd_if_q<deduce_ref<std::vector>>>        // one std::string
-        //        hop::ol<hop::tmpl_q<vector_test>>        // one std::string
-    >;
-
-    template<typename... Ts, decltype((hop::enable<overloads_t, Ts...>()), 0) = 0 >
-    void foo(Ts&& ... ts) {
-        using OL = decltype(hop::enable<overloads_t, Ts...>());
-
-        if constexpr (hop::has_tag_v<OL, tag_vector>) {
-            output_args(std::forward<Ts>(ts)...);
-        } else if constexpr (hop::has_tag_v<OL, tag_list_alloc>) {
-            using Actual = hop::deduced_local_types<OL, 0>;
-          
-  //          typename hop::debug<Actual>::type d;
-          //  typename hop::debug<boost::mp11::mp_second<Actual>>::type d;
-          //  using arg_0_t = boost::mp11::mp_first<Actual>;
-          //  arg_0_t t;
-          //  t = "";
-          ////z  typename hop::debug<arg_0_t>::type d;
-          //  int i = 42;
-//            output_args(std::forward<Ts>(ts)...);
-        }
-    //output_args(std::forward<Ts>(ts)...);
-    }
-
-
-
-
-
-    void test() {
-        //foo("Hello");
-//        foo(std::list<int>{});
-        foo(std::vector<int>{});
-        //foo(std::vector{ "world!" });
-        //foo(4);
-        std::vector<int> v;
-        //      foo(v);
-    }
-}
-
-
-namespace ns_test_18 {
-    // invoking different base-class constructors
+    // invoking different base-class constructors via constructor delegation
+    // constructor delegation is needed when base-class constructors with different arities are involved
     // (the same technique can be used to invoke different constructors for class members)
 
 
@@ -806,24 +740,9 @@ namespace ns_test_18 {
         >;
 
 
-        //template<typename... Ts, decltype((hop::enable<overloads_t, Ts...>()), 0) = 0 >
-        //foo_class(tag_ints, Ts&& ... ts)
-        //    : base_class{} {
-        //    using OL = decltype(hop::enable<overloads_t, Ts...>());
-
-        //    output_args(std::forward<Ts>(ts)...);
-        //}
-
-        //template<typename... Ts, decltype((hop::enable<overloads_t, Ts...>()), 0) = 0 >
-        //foo_class(tag_string, Ts&& ... ts)
-        //    : base_class{ hop::get_arg_at<0>(std::forward<Ts>(ts)...) } {
-        //    using OL = decltype(hop::enable<overloads_t, Ts...>());
-
-        //    output_args(std::forward<Ts>(ts)...);
-        //}
-
         template<typename... Ts, decltype((hop::enable<overloads_t, Ts...>()), 0) = 0 >
         foo_class(Ts&& ... ts)
+            // delegate constructor using tag-dispatching
             : foo_class(hop::get_tag_type<decltype(hop::enable<overloads_t, Ts...>())>{}, std::forward<Ts>(ts)...) {
             using OL = decltype(hop::enable<overloads_t, Ts...>());
 
@@ -831,7 +750,7 @@ namespace ns_test_18 {
         }
 
     private:
-        // helper contructor to default create base_class
+        // helper contructor to create base_class without arg
         template<typename... Ts, decltype((hop::enable<overloads_t, Ts...>()), 0) = 0 >
         foo_class(tag_ints, Ts&& ... ts)
             : base_class{} {}
@@ -850,29 +769,8 @@ namespace ns_test_18 {
 }
 
 
-namespace ns_test_19 {
-    // template type argument deduction
-
-
-    struct vector_test {
-
-        template<class T, class _Ty>
-        static boost::mp11::mp_list<_Ty, boost::mp11::mp_list<T>> test(std::vector<T>, _Ty&&);
-
-        struct no_match;
-        static boost::mp11::mp_list<no_match> test(...);
-
-        template<class T>
-        using fn = std::is_same<T, boost::mp11::mp_first<decltype(test(std::declval<T>(), std::declval<T>()))>>;
-
-        template<class T>
-        using deduced = boost::mp11::mp_second<decltype(test(std::declval<T>(), std::declval<T>()))>;
-
-    };
-
-
-    struct tag_vector;
-    struct tag_list_alloc;
+namespace ns_test_18 {
+    // global template type argument deduction
 
     template<class T1, class T2>
     using map_alias = std::map<T1, T2>const&;
@@ -880,27 +778,55 @@ namespace ns_test_19 {
     template<class T1, class T2>
     using set_alias = std::set<T2>const&;
 
-    template<class T2, class Alloc2>
-    using map_list_alloc = std::list<T2, Alloc2>const&;
-
-    //template<class T>
-    //using map_vector1 = std::vector<T>const&;
+    struct tag_map_set;
 
 
     using overloads_t = hop::ol_list <
-        hop::ol<hop::deduce<map_alias>, hop::deduce<set_alias>>
-        // one std::string
-        //        hop::ol<hop::fwd_if_q<vector_test>>        // one std::string
-//        hop::tagged_ol<tag_vector, std::string, hop::deduce<map_vector>, hop::deduce<map_list_alloc>>        // one std::string
-//        , hop::tagged_ol<tag_vector, std::string, hop::deduce<map_list_alloc>>        // one std::string
-//        , hop::tagged_ol<tag_vector, hop::deduce<map_vector1>>        // one std::string
-, hop::tagged_ol<tag_vector, std::string>        // one std::string
-//,hop::ol<int>        // one std::string
-,hop::tagged_ol<tag_list_alloc, hop::deduce_local<map_list_alloc>>        // one std::string
-//hop::ol<hop::fwd_if_q<deduce<std::vector>>>        // one std::string
-//,
-//hop::ol<hop::fwd_if_q<deduce_ref<std::vector>>>        // one std::string
-//        hop::ol<hop::tmpl_q<vector_test>>        // one std::string
+        hop::tagged_ol<tag_map_set, hop::deduce<map_alias>, hop::deduce<set_alias>>
+    >;
+
+    template<typename... Ts, decltype((hop::enable<overloads_t, Ts...>()), 0) = 0 >
+    void foo(Ts&& ... ts) {
+        using OL = decltype(hop::enable<overloads_t, Ts...>());
+
+        if constexpr (hop::has_tag_v<OL, tag_map_set>) {
+            output_args(std::forward<Ts>(ts)...);
+        }
+    }
+
+
+    void test() {
+        std::map<int, std::string> my_map;
+        std::set<std::string> my_set;
+        foo(my_map, my_set);
+
+        std::set<double> another_set;
+        //foo(my_map, another_set); // error
+    }
+}
+
+namespace ns_test_19 {
+    // local template type argument deduction
+
+    template<class T>
+    using vector_alias = std::vector<T>const&;
+
+    template<class T, class Alloc>
+    using list_alloc_alias = std::list<T, Alloc>const&;
+
+    struct tag_vector;
+    struct tag_list_alloc;
+
+
+    template <class OL, class T, T... I>
+    void print_deduced(std::integer_sequence<T, I...>) {
+        ((os << typeid(hop::deduced_local_types<OL, I>).name() << std::endl), ...);
+    }
+
+
+    using overloads_t = hop::ol_list <
+        hop::tagged_ol<tag_vector, hop::pack<hop::deduce_local<vector_alias>>>
+        , hop::tagged_ol<tag_list_alloc, hop::deduce_local<list_alloc_alias>>
     >;
 
     template<typename... Ts, decltype((hop::enable<overloads_t, Ts...>()), 0) = 0 >
@@ -908,42 +834,28 @@ namespace ns_test_19 {
         using OL = decltype(hop::enable<overloads_t, Ts...>());
 
         if constexpr (hop::has_tag_v<OL, tag_vector>) {
-            //output_args(std::forward<Ts>(ts)...);
+            os << "deduced types\n";
+            print_deduced<OL>(std::make_index_sequence<sizeof...(ts)>{});
+
+            output_args(std::forward<Ts>(ts)...);
         } else if constexpr (hop::has_tag_v<OL, tag_list_alloc>) {
-                        using Actual = hop::deduced_local_types<OL, 0>;
-
-//                        hop::debug<boost::mp11::mp_second<Actual>> d;
-                        typename boost::mp11::mp_second<Actual> d;
-                        using arg_0_t = boost::mp11::mp_first<Actual>;
-                        arg_0_t t;
-                        t = 42;
-                        auto p = d.allocate(10);
-                        d.deallocate(p, 10);
-                      //z  typename hop::debug<arg_0_t>::type d;
-                        int i = 42;
-                        output_args(std::forward<Ts>(ts)...);
+            using T = hop::deduced_local_types<OL, 0>;
+            os << typeid(T).name() << std::endl;
+            output_args(std::forward<Ts>(ts)...);
         }
-        //output_args(std::forward<Ts>(ts)...);
     }
-
-
 
 
 
     void test() {
-        foo("Hello");
-               foo(std::list<int>{});
-         //       foo(std::string{}, std::list<int>{});
-        foo(std::map<int, std::string>{}, std::set<std::string>{});
-        //foo(std::vector<int>{}/*, std::list<int>{}*/);
-        //foo(std::vector{ "world!" });
-        //foo(4);
-        //std::vector<int> v;
-        //      foo(v);
-        //foo(std::vector<int>{}, std::list<float>{});
+        foo(std::list<int>{});
+
+        std::vector<int> v1;
+        std::vector<double> v2;
+        std::vector<std::string> v3;
+        foo(v1, v2, v3);
     }
 }
-
 
 namespace ns_test_20 {
     // adapting existing functions
@@ -998,62 +910,38 @@ namespace ns_test_20 {
 
 
 namespace ns_test_21 {
-    // a homogenous pack
+    // alternatives and sequences
 
-    //using overloads_t = hop::ol_list <
-    //    hop::ol<hop::pack<hop::seq<int, std::string>>>     // accept a (possibly empty) list of ints
-    //>;
+    using overloads_t = hop::ol_list <
+        hop::ol<hop::alt<hop::repeat<int, 1, 3>, std::string>>
+        , hop::ol<hop::pack<hop::seq<std::string, hop::alt<int, bool, double, std::string>>>>
+    >;
 
-    //template<typename... Ts, decltype((hop::enable<overloads_t, Ts...>()), 0) = 0 >
-    //void foo(Ts&& ... ts) {
-    //    using OL = decltype(hop::enable<overloads_t, Ts...>());
+    template<typename... Ts, decltype((hop::enable<overloads_t, Ts...>()), 0) = 0 >
+    void foo(Ts&& ... ts) {
+        using OL = decltype(hop::enable<overloads_t, Ts...>());
 
-    //    output_args(std::forward<Ts>(ts)...);
-    //}
+        output_args(std::forward<Ts>(ts)...);
+    }
+
+
+
 
 
     void test() {
-//        foo();
-//        foo(42, "");
+        foo("hello");
+        foo(42);
+        foo(42, 1, 1);
+        foo(42, 1);
+        foo(42, 1);
+        foo();
+        
+        foo("a", 1.5, "b", "two", "c", false);
     }
 }
 
 
 
-using namespace boost::mp11;
-
-
-
-// mp_flatten<L, L2 = mp_clear<L>>
-namespace detail {
-
-    template<class L2> struct mp_flatten_impl {
-        template<class T> using fn = mp_if<mp_similar<L2, T>, T, mp_list<T>>;
-    };
-
-} // namespace detail
-
-template<class L, class L2 = mp_clear<L>> using mp_flatten = mp_apply<mp_append, mp_push_front<mp_transform_q<::detail::mp_flatten_impl<L2>, L>, mp_clear<L>>>;
-
-
-template<class L>
-struct mp_concat_s;
-
-template<template<class...> class L, class... Ts>
-struct mp_concat_s<L<Ts...>> {
-    using type = mp_append<Ts...>;
-};
-
-template<class L>
-using mp_concat = typename mp_concat_s<L>::type;
-
-template<class L>
-using mp_union = mp_fold<L, mp_list<>, mp_append>;
-
-
-namespace test {
-    int main2();
-}
 
 int main() {
 

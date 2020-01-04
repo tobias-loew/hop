@@ -214,7 +214,7 @@ A single overload `hop::ol<...>` consists of a list of types that are:
     >;
     
     template<typename... Ts, decltype((hop::enable<overloads_t, Ts...>()), 0) = 0 >
-    void foo(Ts&& ... ts) {
+    decltype(auto) foo(Ts&& ... ts) {
         using OL = decltype(hop::enable<overloads_t, Ts...>());
         if constexpr (hop::is_adapted_v<OL>) {
             return hop::forward_adapted<OL>(std::forward<Ts>(ts)...);
@@ -244,7 +244,8 @@ A single overload `hop::ol<...>` consists of a list of types that are:
     foo(my_map, another_set); // error
     ``` 
     All arguments specified with `hop::deduce` take part in the global type-deduction, thus `foo` can only be called with a map and a set, where the set-type is the same as the mapped-to-type.
-    Please note that in the definition of the template-alias for `set_alias` the unused template type `class T1` is required, since `T1` and `T2` are deduced by matching `map_alias` and `set_alias` *simultaneously*.
+    Please note, that in the definition of the template-alias for `set_alias` the unused template type `class T1` is required, since `T1` and `T2` are deduced by matching `map_alias` and `set_alias` *simultaneously* 
+    and for all templates in the same order. Template non-type parameters are currently not supported.
     
   - in the *local* version the types are deduced intependently for each argument, for example
     ```
@@ -263,9 +264,11 @@ A single overload `hop::ol<...>` consists of a list of types that are:
     ```
     `foo` matches any list of `std::vector`s. Note, that this cannot be achived with global-deduction as the number of deduced-types is variable.  
 - types can be tagged with `hop::tagged_ty<tag_type, T>` for accessing the arguments of an overload
+<!---
 - argument-lists can be *gathered* with `hop::gather<tag_type, L>` where `L` is a list build with the above constructors.
-  `gather` does not affect the generated argument-list but gathers it's content into a single `std::tuple` when accessing the actual parameters.
+  `gather` does not affect the generated argument-list but gathers its content into a single `std::tuple` when accessing the actual parameters.
   Additionally, `gather` is tagged to distinguish different gatherings
+--->
 - finally, the following variations of `hop::ol<...>`:
   ```
     template<template<class...> class _If, class... _Ty>
@@ -300,7 +303,7 @@ ArgumentList =
     | general_defaulted_param&lt;Type, <i>init</i>> 
     | fwd
     | fwd_if&lt;<i>condition</i>>
-    | gather&lt;<i>tag</i>, ArgumentList> 
+<!---    | gather&lt;<i>tag</i>, ArgumentList> --->
 </code></pre>
 
 Inside a function `hop` provides several templates and functions for inspecting the current overload and accessing function arguments:

@@ -39,7 +39,8 @@ namespace hop {
     namespace detail {
 
         template<class L2> struct mp_flatten_impl {
-            template<class T> using fn = mp_if<mp_similar<L2, T>, T, mp_list<T>>;
+            template<class T> using fn = T;
+//            template<class T> using fn = mp_if<mp_similar<L2, T>, T, mp_list<T>>;
         };
 
     } // namespace detail
@@ -191,7 +192,7 @@ namespace hop {
     // struct to create a forward-reference
     namespace impl {
         template <class _Ty>
-        using fwd_helper_t = typename std::type_identity<_Ty>::type&&;
+        using fwd_helper_t = _Ty&&;
     }
     using fwd = tmpl<impl::fwd_helper_t>;
 
@@ -374,7 +375,7 @@ namespace hop {
     using deduce = tmpl_q< impl::deduction_pattern<Pattern>>;
 
     namespace impl {
-        template<auto&& f>
+        template<auto f>
         struct adapter {
             template<class... Ts>
             static decltype(f(std::declval<Ts>()...)) forward(Ts&&... ts) {
@@ -651,7 +652,7 @@ namespace hop {
             using deduced_t =
                 mp_eval_if_c< has_no_deduction_pattern,
                 mp_list<>,
-                typename deducer_t<typename make_deduction_pattern<_FormalTys, _ActualTys>::type...>::template deduced,
+                deducer_t<typename make_deduction_pattern<_FormalTys, _ActualTys>::type...>::template deduced,
                 _ActualTys...
                 >;
         };
@@ -659,11 +660,11 @@ namespace hop {
 
         //////////////////////////////////////////////////////////////////////////////////////////////////
         // core template that generates the call-operator to test
-        template <size_t _Idx, class _ExpandedTypes, class _ExpectedTypes, class _DefaultedTypes, class _Info, class _If>
+        template <size_t _Idx, class _ExpandedTypes, class _ExpectedTypes, class _DefaultedTypes, class _Info, class _If, class _Expansion>
         struct _single_overload_helper;
 
-        template <size_t _Idx, class... _ExpandedTys, class... _ExpectedTys, class... _DefaultedTys, class _Info, class _If>
-        struct _single_overload_helper<_Idx, mp_list<_ExpandedTys...>, mp_list<_ExpectedTys...>, mp_list<_DefaultedTys...>, _Info, _If> {
+        template <size_t _Idx, class... _ExpandedTys, class... _ExpectedTys, class... _DefaultedTys, class _Info, class _If, class _Expansion>
+        struct _single_overload_helper<_Idx, mp_list<_ExpandedTys...>, mp_list<_ExpectedTys...>, mp_list<_DefaultedTys...>, _Info, _If, _Expansion> {
 
             using expanded_types = mp_list<_ExpandedTys...>;
             using expected_types = mp_list<_ExpectedTys...>;
@@ -684,7 +685,8 @@ namespace hop {
                 defaulted_types,                                                    //static constexpr size_t default_info_type_index = 3;        // the original secification of the selected overload with default-info
                 expanded_types,                                                     //static constexpr size_t actual_parameter_overload_type_index = 4;     // the type-list of the selected overload
                 mp_list<T...>,                                                      //static constexpr size_t deduced_local_parameter_overload_type_index = 5;     // the local deduced types
-                typename deduction_helper<mp_list<T...>, expanded_types>::deduced_t //static constexpr size_t deduced_parameter_overload_type_index = 6;     // the (global) deduced types
+                typename deduction_helper<mp_list<T...>, expanded_types>::deduced_t,//static constexpr size_t deduced_parameter_overload_type_index = 6;     // the (global) deduced types
+                _Expansion                                                          //static constexpr size_t expansion_type_index = 7;     // type holding the inductive expansion of the types
                 > test(typename unpack_replace_tmpl<_ExpandedTys, T>::type...) const;
         };
 
@@ -700,7 +702,8 @@ namespace hop {
             mp_flatten<mp_list<typename _ArgTys::expected_type_list ...>>,
             mp_flatten<mp_list<typename _ArgTys::defaulted_type_list ...>>,
             _Info,
-            _If
+            _If,
+            mp_list<_ArgTys...>
             > {
             using _single_overload_helper<
                 _Idx,
@@ -708,7 +711,8 @@ namespace hop {
                 mp_flatten<mp_list<typename _ArgTys::expected_type_list ...>>,
                 mp_flatten<mp_list<typename _ArgTys::defaulted_type_list ...>>,
                 _Info,
-                _If
+                _If,
+                mp_list<_ArgTys...>
             >::test;
         };
 
@@ -764,7 +768,7 @@ namespace hop {
 
         template<class _Tag, class _TyTag, class _Ty>
         struct _arg_count<_Tag, gather<_TyTag, _Ty>> {
-            static constexpr size_t value = _arg_count<_Ty>::value;
+            static constexpr size_t value = _arg_count<_Tag, _Ty>::value;
         };
 
 
@@ -866,7 +870,7 @@ namespace hop {
 
 
 
-        // induction case for i + 1
+        // induction case for i > 0
         template<size_t _arg_count, class _Ty, size_t _min, size_t _max>
         struct _expand_current<_arg_count, repeat<_Ty, _min, _max>
 #if defined(HOP_ENABLE_REPEAT_OPTIMIZATION)
@@ -1189,10 +1193,7 @@ namespace hop {
 
         template<class _Ty>
         using make_ol_from_base_t =
-            mp_append<
-            mp_list<mp_first<_Ty>, make_information_from_base_t<mp_second<_Ty>>>
-            , mp_drop_c<_Ty, 2>
-            >;
+            mp_replace_second<_Ty, make_information_from_base_t<mp_second<_Ty>>>;
 
     }
 
@@ -1213,7 +1214,7 @@ namespace hop {
     static constexpr size_t actual_parameter_overload_type_index = 4;     // the type-list of the selected overload
     static constexpr size_t deduced_local_parameter_overload_type_index = 5;     // the local deduced types
     static constexpr size_t deduced_parameter_overload_type_index = 6;     // the (global) deduced types
-
+    static constexpr size_t expansion_type_index = 7;     // type holding the inductive expansion of the types
 
     template<class _Overload>
     using get_tag_type = typename mp_at_c<_Overload, information_index>::tag_t;
@@ -1593,10 +1594,10 @@ namespace hop {
     using adapted = tagged_adapted<impl::none_tag, Adapter>;
 
 
-    template<auto&& f>
+    template<auto f>
     using adapt = adapted<impl::adapter<f>>;
 
-    template<class _Tag, auto&& f>
+    template<class _Tag, auto f>
     using tagged_adapt = tagged_adapted<_Tag, impl::adapter<f>>;
 
 
@@ -1611,4 +1612,4 @@ namespace hop {
 
 }
 
-#endif HOP_HOP_HPP_INCLUDED
+#endif // HOP_HOP_HPP_INCLUDED
