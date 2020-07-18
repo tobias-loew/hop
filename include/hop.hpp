@@ -660,11 +660,11 @@ namespace hop {
 
         //////////////////////////////////////////////////////////////////////////////////////////////////
         // core template that generates the call-operator to test
-        template <size_t _Idx, class _ExpandedTypes, class _ExpectedTypes, class _DefaultedTypes, class _Info, class _If, class _Expansion>
+        template <size_t _Idx, class _ExpandedTypes, class _ExpectedTypes, class _DefaultedTypes, class _Info, class _If, class _Gathered>
         struct _single_overload_helper;
 
-        template <size_t _Idx, class... _ExpandedTys, class... _ExpectedTys, class... _DefaultedTys, class _Info, class _If, class _Expansion>
-        struct _single_overload_helper<_Idx, mp_list<_ExpandedTys...>, mp_list<_ExpectedTys...>, mp_list<_DefaultedTys...>, _Info, _If, _Expansion> {
+        template <size_t _Idx, class... _ExpandedTys, class... _ExpectedTys, class... _DefaultedTys, class _Info, class _If, class _Gathered>
+        struct _single_overload_helper<_Idx, mp_list<_ExpandedTys...>, mp_list<_ExpectedTys...>, mp_list<_DefaultedTys...>, _Info, _If, _Gathered> {
 
             using expanded_types = mp_list<_ExpandedTys...>;
             using expected_types = mp_list<_ExpectedTys...>;
@@ -686,7 +686,7 @@ namespace hop {
                 expanded_types,                                                     //static constexpr size_t actual_parameter_overload_type_index = 4;     // the type-list of the selected overload
                 mp_list<T...>,                                                      //static constexpr size_t deduced_local_parameter_overload_type_index = 5;     // the local deduced types
                 typename deduction_helper<mp_list<T...>, expanded_types>::deduced_t,//static constexpr size_t deduced_parameter_overload_type_index = 6;     // the (global) deduced types
-                _Expansion                                                          //static constexpr size_t expansion_type_index = 7;     // type holding the inductive expansion of the types
+                _Gathered                                                           //static constexpr size_t gathered_type_index = 7;     // type holding the gather-tagged inductive type
                 > test(typename unpack_replace_tmpl<_ExpandedTys, T>::type...) const;
         };
 
@@ -694,26 +694,17 @@ namespace hop {
         template <size_t _Idx, class _Ty>
         struct _single_overload;
 
-        template <size_t _Idx, class... _ArgTys, class _Info, class _If>
-        struct _single_overload<_Idx, mp_list<mp_list<_ArgTys...>, _Info, _If>>
+        template <size_t _Idx, class... _ArgTys, class _Info, class _If, class _Gathered>
+        struct _single_overload<_Idx, mp_list<mp_list<_ArgTys...>, _Info, _If, _Gathered>>
             :_single_overload_helper<
             _Idx,
             mp_flatten<mp_list<typename _ArgTys::expanded_type_list ...>>,
             mp_flatten<mp_list<typename _ArgTys::expected_type_list ...>>,
             mp_flatten<mp_list<typename _ArgTys::defaulted_type_list ...>>,
             _Info,
-            _If,
-            mp_list<_ArgTys...>
+            _If, 
+            _Gathered
             > {
-            using _single_overload_helper<
-                _Idx,
-                mp_flatten<mp_list<typename _ArgTys::expanded_type_list ...>>,
-                mp_flatten<mp_list<typename _ArgTys::expected_type_list ...>>,
-                mp_flatten<mp_list<typename _ArgTys::defaulted_type_list ...>>,
-                _Info,
-                _If,
-                mp_list<_ArgTys...>
-            >::test;
         };
 
 
@@ -996,6 +987,21 @@ namespace hop {
         };
 
 
+
+
+        template<size_t _arg_count, class _Tag, class _Ty>
+        struct _expand_current<_arg_count, gather<_Tag, _Ty>> {
+
+            // gather must be inside mp_list, otherwise it's removed by mp_product-mp_flatten
+            template<class T> using add_gather = mp_list<gather<_Tag, T>>;
+
+            using type =
+                mp_transform<
+                add_gather,
+                typename _expand_current<_arg_count, _Ty>::type
+                >;
+        };
+
         template <size_t _arg_count, class _Ty>
         struct is_cpp_defaulted_param_used : mp_false {};
 
@@ -1103,8 +1109,51 @@ namespace hop {
             using _Ty = mp_first< _TyIf>;	// split from global enable_if condition etc.
             using type_no_If = typename _expand_overload_set_impl<_arg_count, _Ty>::type;
 
+#if 0
+            template<class T>
+            struct degather {
+                using type = T;
+            };
+
+            template<class... _Tys>
+            struct degather<mp_list<_Tys...>> {
+                using type = mp_list< typename degather<_Tys>::type...>;
+            };
+
+            template<class _Tag, class... _Tys>
+            struct degather<gather<_Tag, mp_list<_Tys...>>> {
+                using type = mp_list< typename degather<_Tys>::type...>;
+            };
+#else
+            template <class Acc, class Input>
+            struct degather_helper;
+
+            template <class... Ts, class _Tag, class... _Tys, class... Tail>
+            struct degather_helper<mp_list<Ts...>, mp_list<gather<_Tag, mp_list<_Tys...>>, Tail...>> {
+                using type = typename degather_helper<mp_list<Ts..., _Tys...>, mp_list<Tail...>>::type;
+            };
+            template <class... Ts, class Head, class... Tail>
+            struct degather_helper<mp_list<Ts...>, mp_list<Head, Tail...>> {
+                using argument_t_check = typename Head::defaulted_type_list; // Head should be an argument_t
+
+                using type = typename degather_helper<mp_list<Ts..., Head>, mp_list<Tail...>>::type;
+            };
+            template <class... Ts>
+            struct degather_helper<mp_list<Ts...>, mp_list<>> {
+                using type = mp_list<Ts...>;
+            };
+
+            template<class T>
+            struct degather {
+                using type = typename degather_helper<mp_list<>, T>::type;
+            };
+#endif
+
+            template<class T>
+            using degathered_t = typename degather<T>::type;
+
             template<class T> using rejoin_If_t =
-                mp_append<mp_list<T>, mp_rest< _TyIf>>;
+                mp_append<mp_list<degathered_t<T>>, mp_rest< _TyIf>, mp_list<T>>;
 
             using type =
                 mp_transform<
@@ -1131,8 +1180,6 @@ namespace hop {
         template <size_t _arg_count, size_t _Idx, class... _TypeIf_list>
         struct _expanded_overload_set<_arg_count, _Idx, mp_list<_TypeIf_list...>>
             : _expanded_overload_set_<_arg_count, _Idx, mp_list<_TypeIf_list...>> {
-
-            using _expanded_overload_set_<_arg_count, _Idx, mp_list<_TypeIf_list...>>::test;
         };
 
 
@@ -1214,7 +1261,7 @@ namespace hop {
     static constexpr size_t actual_parameter_overload_type_index = 4;     // the type-list of the selected overload
     static constexpr size_t deduced_local_parameter_overload_type_index = 5;     // the local deduced types
     static constexpr size_t deduced_parameter_overload_type_index = 6;     // the (global) deduced types
-    static constexpr size_t expansion_type_index = 7;     // type holding the inductive expansion of the types
+    static constexpr size_t gathered_type_index = 7;        // type holding the gather-tagged inductive type
 
     template<class _Overload>
     using get_tag_type = typename mp_at_c<_Overload, information_index>::tag_t;
@@ -1269,6 +1316,9 @@ namespace hop {
 
     template<class _Overload>
     using deduced_parameter_overload_type = mp_at_c<_Overload, deduced_parameter_overload_type_index>;
+
+    template<class _Overload>
+    using gathered_type = mp_at_c<_Overload, gathered_type_index>;
 
 
 
@@ -1392,12 +1442,7 @@ namespace hop {
                 constexpr auto defaulted_tag_index = mp_find_if_q<defaulted_types, impl::has_tag<_Tag>>::value;
                 constexpr auto defaulted_end = mp_size<defaulted_types>::value;
 
-                //#define ENFORCE_MSVC_COMPILATION_ERROR
-#ifdef ENFORCE_MSVC_COMPILATION_ERROR
                 if constexpr (defaulted_tag_index < defaulted_end) {
-#else
-                if constexpr (defaulted_end > defaulted_tag_index) {
-#endif
                     using defaulted_type = typename mp_at_c<defaulted_types, defaulted_tag_index>::type;
                     return  impl::get_init_type_t<defaulted_type>{}();
                 } else {
@@ -1436,6 +1481,7 @@ namespace hop {
     }
 
 
+#if 0
     namespace impl {
 
         template<class _Overload, class _If, size_t index_specified, size_t index_expected>
@@ -1485,9 +1531,84 @@ namespace hop {
         }
     }
 
+#else
+    namespace impl {
+        template<class _Overload, class _If, class _Gathered, size_t index_specified, size_t index_expected>
+        struct get_args_if_helper_t;
+
+        template<class _Overload, class _If, class _Gathered, size_t index_specified, size_t index_expected>
+        constexpr decltype(auto) get_args_if_helper() {
+            using expected_types = expected_parameter_overload_type<_Overload>;
+
+            if constexpr (mp_size<expected_types>::value > index_expected) {
+                if constexpr (is_defaulted_param<mp_at_c<expected_types, index_expected>>::value) {
+                    if constexpr (_If::template fn<mp_at_c<expected_types, index_expected>>::value) {
+                        return std::tuple_cat(
+                            std::make_tuple(impl::get_init_type_t<mp_at_c<expected_types, index_expected>>{}()),
+                            get_args_if_helper<_Overload, _If, index_specified, index_expected + 1>()
+                        );
+                    } else {
+                        return get_args_if_helper<_Overload, _If, index_specified, index_expected + 1>();
+                    }
+                } else {
+                    static_assert(dependent_false<_Overload>::value);  // must be a defaulted_param
+                    return get_args_if_helper<_Overload, _If, index_specified, index_expected + 1>();
+                }
+            } else {
+                return std::tuple<>{};
+            }
+        }
+
+
+        template<class _Overload, class _If, class _Gathered, size_t index_specified, size_t index_expected, class T, class... Ts>
+        constexpr decltype(auto) get_args_if_helper(T&& t, Ts&&... ts) {
+            using expected_types = expected_parameter_overload_type<_Overload>;
+
+            if constexpr (is_defaulted_param<mp_at_c<expected_types, index_expected>>::value) {
+                if constexpr (_If::template fn<mp_at_c<expected_types, index_expected>>::value) {
+                    return std::tuple_cat(
+                        std::make_tuple(impl::get_init_type_t<mp_at_c<expected_types, index_expected>>{}()),
+                        get_args_if_helper<_Overload, _If, index_specified, index_expected + 1>(std::forward<T>(t), std::forward<Ts>(ts)...)
+                    );
+                } else {
+                    return get_args_if_helper<_Overload, _If, index_specified, index_expected + 1>(std::forward<T>(t), std::forward<Ts>(ts)...);
+                }
+            } else {
+                if constexpr (_If::template fn<mp_at_c<actual_parameter_overload_type<_Overload>, index_specified>>::value) {
+                    return std::tuple_cat(std::forward_as_tuple(std::forward<T>(t)), get_args_if_helper<_Overload, _If, index_specified + 1, index_expected + 1>(std::forward<Ts>(ts)...));
+                } else {
+                    return get_args_if_helper<_Overload, _If, index_specified + 1, index_expected + 1>(std::forward<Ts>(ts)...);
+                }
+            }
+        }
+
+// TODO: implement get_args_if
+        template<class _Overload, class _If, size_t index_specified, size_t index_expected>
+        struct get_args_if_helper_t<_Overload, _If, mp_list<>, index_specified, index_expected> {
+            static constexpr decltype(auto) get_args_if() { // no args expected
+                return std::tuple<>{};
+            }
+        };
+
+        template<class _Overload, class _If, class Head, class... Tail, size_t index_specified, size_t index_expected>
+        struct get_args_if_helper_t<_Overload, _If, mp_list<Head, Tail...>, index_specified, index_expected> {
+            template<class... Ts>
+            static constexpr decltype(auto) get_args_if(Ts&&... ts) {
+                return std::tuple<>{};
+            }
+        };
+
+
+        //template<class _Overload, class _If, class _Gathered, size_t index_specified, size_t index_expected, class T, class... Ts>
+            //constexpr decltype(auto) get_args_if_helper(T && t, Ts &&... ts) {
+
+    }
+#endif
+
     template<class _Overload, class _If, class... Ts>
     constexpr decltype(auto) get_args_if_q(Ts&&... ts) {
-        return impl::get_args_if_helper<_Overload, _If, 0, 0>(std::forward<Ts>(ts)...);
+     //   return impl::get_args_if_helper<_Overload, _If, 0, 0>(std::forward<Ts>(ts)...);
+        return impl::get_args_if_helper_t<_Overload, _If, gathered_type<_Overload>, 0, 0>::get_args_if(std::forward<Ts>(ts)...);
     }
 
     template<class _Overload, template<class> class _If, class... Ts>

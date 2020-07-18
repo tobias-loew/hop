@@ -24,10 +24,11 @@
 #include "..\include\hop.hpp"
 
 
+//auto&& os = std::cout;
 auto&& os = std::ofstream("hop_out.txt");
 
 template<class T>
-struct tag_t { 
+struct tag_t {
     using type = T;
     constexpr tag_t() {}
 };
@@ -60,21 +61,23 @@ std::string tuple_to_string(T&&);
 
 template<class T>
 decltype(auto) printer(T) {
+    enum new_type {}; // needed due to problems with mp_similar
+
     using type = std::remove_cv_t<std::remove_reference_t<typename T::type>>;
     if constexpr (std::is_same<type, std::wstring>::value) {
         // use very simple ws to s converter (it's deprecated, but works for our purposes)
         return [](type const& s) {return ws_to_s(s); };
-    } else if constexpr (boost::mp11::mp_similar<type, std::vector<int>>::value) {
+    } else if constexpr (boost::mp11::mp_similar<type, std::vector<new_type>>::value) {
         return [](type const& s) { return to_string<limiters::bracket>(s); };
-    } else if constexpr (boost::mp11::mp_similar<type, std::pair<int, int>>::value) {
+    } else if constexpr (boost::mp11::mp_similar<type, std::pair<new_type, new_type>>::value) {
         return [](type const& s) { return tuple_to_string<limiters::bracket>(s); };
-    } else if constexpr (boost::mp11::mp_similar<type, std::tuple<>>::value) {
+    } else if constexpr (boost::mp11::mp_similar<type, std::tuple<new_type>>::value) {
         return [](type const& s) { return tuple_to_string<limiters::bracket>(s); };
-    } else if constexpr (boost::mp11::mp_similar<type, std::list<int>>::value) {
+    } else if constexpr (boost::mp11::mp_similar<type, std::list<new_type>>::value) {
         return [](type const& s) { return to_string<limiters::paren>(s); };
-    } else if constexpr (boost::mp11::mp_similar<type, std::set<int>>::value) {
+    } else if constexpr (boost::mp11::mp_similar<type, std::set<new_type>>::value) {
         return [](type const& s) { return to_string<limiters::angle>(s); };
-    } else if constexpr (boost::mp11::mp_similar<type, std::map<int, int>>::value) {
+    } else if constexpr (boost::mp11::mp_similar<type, std::map<new_type, new_type>>::value) {
         return [](type const& s) { return to_string<limiters::brace>(s); };
     } else {
         return [](auto&& t)->decltype(auto) {
@@ -89,7 +92,7 @@ decltype(auto) make_printable(T&& arg) {
 }
 
 template<limiters limit, class T>
-std::string to_string(T&& cont){
+std::string to_string(T&& cont) {
     std::string result = limit_symbol[limit][0];
     bool first = true;
     for (auto&& elem : cont) {
@@ -125,7 +128,7 @@ std::string tuple_to_string(T&& t) {
             result += ss.str();
         }()
 
-        ), ...); }, std::forward<T>(t));
+            ), ...); }, std::forward<T>(t));
 
     result += limit_symbol[limit][1];
     return result;
@@ -935,7 +938,7 @@ namespace ns_test_21 {
         foo(42, 1);
         foo(42, 1);
         foo();
-        
+
         foo("a", 1.5, "b", "two", "c", false);
     }
 }
