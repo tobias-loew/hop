@@ -14,6 +14,7 @@
 #define HOP_HOP_HPP_INCLUDED
 
 
+//#include <concepts>
 #include <type_traits>
 #include <algorithm>
 #include <boost/version.hpp>
@@ -55,6 +56,40 @@ namespace hop {
     template<class... t>
     using debug = typename debug_impl<t...>::type;
 #endif
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+// used concepts
+//
+   
+#if __cplusplus >= 201703L
+    
+    template<typename _Ty>
+    concept Quoted = requires {
+        typename _Ty::template fn<void*>;
+    };
+
+    template<typename _Ty>
+    concept Adapted = requires {
+        _Ty::forward;
+    };
+
+    template<typename _Ty>
+    concept DefaultCreator = requires {
+        _Ty{}.operator ();
+    };
+
+
+    
+#else
+#define Quoted typename
+#define Adapted typename
+#define DefaultCreator typename
+#endif
+
+// used concepts
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 
     // meta and fused from http://attugit.github.io/2015/02/Accessing-nth-element-of-parameter-pack/  (http://coliru.stacked-crooked.com/a/ab5f39be452d9448)
     namespace meta {
@@ -104,13 +139,16 @@ namespace hop {
     }
 
 
+    // helper template always returning false
+    // used e.g. in static_assert in never to be choosen "if constexpr" branches
     template<class... T> struct dependent_false : mp_false {};
 
 
-    // template to create a repeated [min, .. , max] parameter
+    // not really infinity, but 4 billion parameters should be enough
     static constexpr size_t infinite = std::numeric_limits<size_t>::max();
 
     // repetition
+    // template to create a repeated [min, .. , max] parameter
     template<class _Ty, size_t _min, size_t _max = infinite>
     struct repeat;
 
@@ -124,7 +162,6 @@ namespace hop {
     struct alt;
 
 
-
     // template to tag a type
     template<class _Tag, class _Ty>
     struct tagged_ty;
@@ -132,6 +169,7 @@ namespace hop {
     // template to gather a parameter-list
     template<class _Tag, class _Ty>
     struct gather;
+
 
 
     // syntactic sugar
@@ -165,8 +203,9 @@ namespace hop {
         };
     }
 
-    // template to create a parameter with default value (C++-style defaulted parameter, only at end of parameter list)
     namespace impl {
+
+        // default creation of an instance of type _Ty
         template<class _Ty>
         struct default_create {
             constexpr decltype(auto) operator()() const { return typename remove_tag<_Ty>::type{}; }
@@ -174,18 +213,18 @@ namespace hop {
     }
 
     // template to create a parameter with default value (C++-style defaulted parameter, only at end of parameter list)
-    template<class _Ty, class _Init = impl::default_create<_Ty>>
+    template<class _Ty, DefaultCreator _Init = impl::default_create<_Ty>>
     struct cpp_defaulted_param;
 
     // template to create a parameter with default value (C++-style, only at end of parameter list)
-    template<class _Ty, class _Init = impl::default_create<_Ty>>
+    template<class _Ty, DefaultCreator _Init = impl::default_create<_Ty>>
     struct general_defaulted_param;
 
     // template to create a forwarded parameter: _Ty has to be a quoted meta-function
-    template<class _Ty>
+    template<Quoted _Ty>
     struct tmpl_q;
 
-    // template to create a forwarded parameter: _Ty has to be a quoted meta-function
+    // template to create a forwarded parameter: _Ty has to be a meta-function
     template<template<class...> class F>
     using tmpl = tmpl_q<mp_quote<F>>;
 
@@ -354,13 +393,13 @@ namespace hop {
 
 
     // struct to create guarded forward-reference
-    template<class _If>
+    template<Quoted _If>
     using fwd_if_q = tmpl_q<impl::if_test<_If>>;
 
     template<template<class> class _If>
     using fwd_if = fwd_if_q<mp_quote<_If>>;
 
-    template<class _If>
+    template<Quoted _If>
     using fwd_if_not_q = tmpl_q<impl::if_not_test<_If>>;
 
     template<template<class> class _If>
@@ -384,7 +423,7 @@ namespace hop {
 
         };
 
-        template<class T>
+        template<Adapted T>
         struct adapter_test {
 
             template<class... Ts>
@@ -426,7 +465,7 @@ namespace hop {
         template<class T>
         struct is_cpp_defaulted_param : mp_false {};
 
-        template<class T, class Init>
+        template<class T, DefaultCreator Init>
         struct is_cpp_defaulted_param<cpp_defaulted_param<T, Init>> : mp_true {};
 
         template<class T>
@@ -434,7 +473,7 @@ namespace hop {
             using type = T;
         };
 
-        template<class T, class Init>
+        template<class T, DefaultCreator Init>
         struct remove_cpp_defaulted_param<cpp_defaulted_param<T, Init>> {
             using type = T;
         };
@@ -445,7 +484,7 @@ namespace hop {
         template<class T>
         struct is_general_defaulted_param : mp_false {};
 
-        template<class T, class Init>
+        template<class T, DefaultCreator Init>
         struct is_general_defaulted_param<general_defaulted_param<T, Init>> : mp_true {};
 
         template<class T>
@@ -453,7 +492,7 @@ namespace hop {
             using type = T;
         };
 
-        template<class T, class Init>
+        template<class T, DefaultCreator Init>
         struct remove_general_defaulted_param<general_defaulted_param<T, Init>> {
             using type = T;
         };
@@ -471,11 +510,11 @@ namespace hop {
         struct remove_defaulted_param {
             using type = T;
         };
-        template<class T, class Init>
+        template<class T, DefaultCreator Init>
         struct remove_defaulted_param<cpp_defaulted_param<T, Init>> {
             using type = T;
         };
-        template<class T, class Init>
+        template<class T, DefaultCreator Init>
         struct remove_defaulted_param<general_defaulted_param<T, Init>> {
             using type = T;
         };
@@ -491,11 +530,11 @@ namespace hop {
             using type = T;
         };
 
-        template<class T, class Init>
+        template<class T, DefaultCreator Init>
         struct get_init_type<cpp_defaulted_param<T, Init>> {
             using type = Init;
         };
-        template<class T, class Init>
+        template<class T, DefaultCreator Init>
         struct get_init_type<general_defaulted_param<T, Init>> {
             using type = Init;
         };
@@ -731,12 +770,12 @@ namespace hop {
         };
 
 
-        template<class _Ty, class _Init>
+        template<class _Ty, DefaultCreator _Init>
         struct _arg_count<tag_args_min, cpp_defaulted_param<_Ty, _Init>> {
             static constexpr size_t value = 0;
         };
 
-        template<class _Ty, class _Init>
+        template<class _Ty, DefaultCreator _Init>
         struct _arg_count<tag_args_min, general_defaulted_param<_Ty, _Init>> {
             static constexpr size_t value = 0;
         };
@@ -923,7 +962,7 @@ namespace hop {
                 >>;
         };
 
-        template <size_t _arg_count, class _Ty, class _Init>
+        template <size_t _arg_count, class _Ty, DefaultCreator _Init>
         struct _expand_current<_arg_count, cpp_defaulted_param<_Ty, _Init>> {
             static_assert(_arg_count <= 1);
 
@@ -939,7 +978,7 @@ namespace hop {
             using type = mp_list<single_type>;              // generated argument-lists
         };
 
-        template <size_t _arg_count, class _Ty, class _Init>
+        template <size_t _arg_count, class _Ty, DefaultCreator _Init>
         struct _expand_current<_arg_count, general_defaulted_param<_Ty, _Init>> {
             static_assert(_arg_count <= 1);
 
@@ -1005,7 +1044,7 @@ namespace hop {
         template <size_t _arg_count, class _Ty>
         struct is_cpp_defaulted_param_used : mp_false {};
 
-        template <class _Ty, class _Init>
+        template <class _Ty, DefaultCreator _Init>
         struct is_cpp_defaulted_param_used<0, cpp_defaulted_param<_Ty, _Init>> : mp_true {};
 
 
@@ -1215,9 +1254,11 @@ namespace hop {
         // information type, contains:
         // user-tag
         // is_from_base information
-        struct not_an_adapter;
+        struct not_an_adapter {
+            static constexpr bool forward{};    // definition needed to satisfy concept "Adapted"
+        };
 
-        template<class _OL, class _Tag, class _Is_from_base, class _Adapter>
+        template<class _OL, class _Tag, class _Is_from_base, Adapted _Adapter>
         struct information_t {
             using overload_t = _OL;
             using tag_t = _Tag;
@@ -1361,10 +1402,10 @@ namespace hop {
         template<class _Test, class _Ty, size_t _min, size_t _max>
         struct has_tag_impl<_Test, repeat<_Ty, _min, _max>>:has_tag_impl<_Test, _Ty> {};
 
-        template<class _Test, class _Ty, class _Init>
+        template<class _Test, class _Ty, DefaultCreator _Init>
         struct has_tag_impl<_Test, cpp_defaulted_param<_Ty, _Init>> :has_tag_impl<_Test, _Ty> {};
 
-        template<class _Test, class _Ty, class _Init>
+        template<class _Test, class _Ty, DefaultCreator _Init>
         struct has_tag_impl<_Test, general_defaulted_param<_Ty, _Init>> :has_tag_impl<_Test, _Ty> {};
 
 
@@ -1442,7 +1483,12 @@ namespace hop {
                 constexpr auto defaulted_tag_index = mp_find_if_q<defaulted_types, impl::has_tag<_Tag>>::value;
                 constexpr auto defaulted_end = mp_size<defaulted_types>::value;
 
+                //#define ENFORCE_MSVC_COMPILATION_ERROR
+#ifdef ENFORCE_MSVC_COMPILATION_ERROR
                 if constexpr (defaulted_tag_index < defaulted_end) {
+#else
+                if constexpr (defaulted_end > defaulted_tag_index) {
+#endif
                     using defaulted_type = typename mp_at_c<defaulted_types, defaulted_tag_index>::type;
                     return  impl::get_init_type_t<defaulted_type>{}();
                 } else {
