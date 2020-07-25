@@ -242,7 +242,7 @@ namespace hop {
         struct none_tag {};
 
 
-        template<class _If>
+        template<Quoted _If>
         struct if_test {
         private:
             struct invalid_type_tag;
@@ -259,7 +259,7 @@ namespace hop {
 
         };
 
-        template<class _If>
+        template<Quoted _If>
         struct if_not_test {
         private:
             struct invalid_type_tag;
@@ -360,9 +360,13 @@ namespace hop {
 
             // here we really would like to write the following test function
             // but since Pattern_ may be an alias template instantiating it with a pack is not allowed
-                       // template<template<class...> class... Pattern, class... T>
-                        // static mp_list<std::true_type, mp_list<T...>> test(Pattern<T...>...);
+            
+            // template<template<class...> class... Pattern, class... T>
+            // static mp_list<std::true_type, mp_list<T...>> test(Pattern<T...>...);
 
+            // we also cannot use the indirection through mp_defer as done in mp_quote since T... 
+            // has to be deducible (that's all this template is about!)
+            
             // overloads to deduce 0 - 10 template types
             //template<template<class...> class... Pattern, class... _Tys>
             //static mp_list<mp_list<_Tys...>, mp_list<>> test(Pattern<>..., _Tys&&...);
