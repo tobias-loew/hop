@@ -41,7 +41,7 @@ namespace hop {
 
         template<class L2> struct mp_flatten_impl {
             template<class T> using fn = T;
-//            template<class T> using fn = mp_if<mp_similar<L2, T>, T, mp_list<T>>;
+            //            template<class T> using fn = mp_if<mp_similar<L2, T>, T, mp_list<T>>;
         };
 
     } // namespace detail
@@ -57,13 +57,13 @@ namespace hop {
     using debug = typename debug_impl<t...>::type;
 #endif
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//
-// used concepts
-//
-   
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //
+    // used concepts
+    //
+
 #if __cplusplus >= 201703L
-    
+
     template<typename _Ty>
     concept Quoted = requires {
         typename _Ty::template fn<void*>;
@@ -80,7 +80,7 @@ namespace hop {
     };
 
 
-    
+
 #else
 #define Quoted typename
 #define Adapted typename
@@ -362,13 +362,13 @@ namespace hop {
 
             // here we really would like to write the following test function
             // but since Pattern_ may be an alias template instantiating it with a pack is not allowed
-            
+
             // template<template<class...> class... Pattern, class... T>
             // static mp_list<std::true_type, mp_list<T...>> test(Pattern<T...>...);
 
             // we also cannot use the indirection through mp_defer as done in mp_quote since T... 
             // has to be deducible (that's all this template is about!)
-            
+
             // overloads to deduce 0 - 10 template types
             //template<template<class...> class... Pattern, class... _Tys>
             //static mp_list<mp_list<_Tys...>, mp_list<>> test(Pattern<>..., _Tys&&...);
@@ -386,7 +386,7 @@ namespace hop {
 #undef HOP_MACRO_DEDUCER_T_TEST
 
 
-            template<template<class> class lazy_expander>
+                template<template<class> class lazy_expander>
             static mp_list<std::false_type, mp_list<>> test(...);
 
             template<class... Tys>
@@ -747,7 +747,7 @@ namespace hop {
             mp_flatten<mp_list<typename _ArgTys::expected_type_list ...>>,
             mp_flatten<mp_list<typename _ArgTys::defaulted_type_list ...>>,
             _Info,
-            _If, 
+            _If,
             _Gathered
             > {
         };
@@ -1400,13 +1400,13 @@ namespace hop {
         struct not_a_tag;
 
         template<class _Test, class T>
-        struct has_tag_impl :std::false_type{};
+        struct has_tag_impl :std::false_type {};
 
         template<class _Test, class _Tag, class _Ty>
-        struct has_tag_impl<_Test, tagged_ty<_Tag, _Ty>>:std::disjunction< std::is_same<_Test, _Tag>, has_tag_impl<_Test, _Ty>>{};
+        struct has_tag_impl<_Test, tagged_ty<_Tag, _Ty>> :std::disjunction< std::is_same<_Test, _Tag>, has_tag_impl<_Test, _Ty>> {};
 
         template<class _Test, class _Ty, size_t _min, size_t _max>
-        struct has_tag_impl<_Test, repeat<_Ty, _min, _max>>:has_tag_impl<_Test, _Ty> {};
+        struct has_tag_impl<_Test, repeat<_Ty, _min, _max>> :has_tag_impl<_Test, _Ty> {};
 
         template<class _Test, class _Ty, DefaultCreator _Init>
         struct has_tag_impl<_Test, cpp_defaulted_param<_Ty, _Init>> :has_tag_impl<_Test, _Ty> {};
@@ -1606,7 +1606,7 @@ namespace hop {
     }
 
 
-// version for gathering
+    // version for gathering
 
     namespace impl {
         template<class _Overload, class _If, class Gathering, class _Gathered, size_t index_specified, size_t index_expected>
@@ -1658,7 +1658,7 @@ namespace hop {
             }
         }
 
-// TODO: implement get_args_if_gathered_helper_t
+        // TODO: implement get_args_if_gathered_helper_t
         template<class _Overload, class _If, class Gathering, size_t index_specified, size_t index_expected>
         struct get_args_if_gathered_helper_t<_Overload, _If, Gathering, mp_list<>, index_specified, index_expected> {
             static constexpr decltype(auto) get_args_if_gathered() { // no args expected
@@ -1785,6 +1785,72 @@ namespace hop {
     template<class _Base, class... _Ty>
     using ol_extend = mp_append<mp_list<_Ty...>, mp_transform<impl::make_ol_from_base_t, _Base>>;
 
+
+
+
+
+    // helper functions
+    
+    // map for tuples
+    template <class F, class Tuple>
+    constexpr decltype(auto) tuple_map(F&& f, Tuple&& t) {
+        return std::apply(
+            [&f](auto&&... args) {
+                return std::make_tuple(std::forward<F>(f)(std::forward<decltype(args)>(args))...);
+            },
+            std::forward<Tuple>(t)
+                );
+    }
+
+    template <class F, class Tuple>
+    constexpr void tuple_apply(F&& f, Tuple&& t) {
+        std::apply(
+            [&f](auto&&... args) {
+                ((std::forward<F>(f)(std::forward<decltype(args)>(args))), ...);
+            },
+            std::forward<Tuple>(t)
+                );
+    }
+
+
+    // fold for variadic arguments
+    template<typename F, typename I, std::enable_if_t<std::is_invocable<F, I>::value, int* > = nullptr>
+    constexpr decltype(auto) operator <<= (F&& f, I&& i) {
+        return f(std::forward<I>(i));
+    }
+
+    template<typename F, typename I, std::enable_if_t<std::is_invocable<F, I>::value, int* > = nullptr>
+    constexpr decltype(auto) operator >>= (I&& i, F&& f) {
+        return f(std::forward<I>(i));
+    }
+
+    template<typename... Fs, typename I>
+    constexpr decltype(auto) fold_right(I&& i, Fs&&... fs) { return (fs <<= ... <<= i); }
+
+    template<typename... Fs, typename I>
+    constexpr decltype(auto) fold_left(I&& i, Fs&&... fs) { return (i >>= ... >>= fs); }
+
+
+    // fold for tuples
+    template<typename Tuple, typename I>
+    constexpr decltype(auto) tuple_fold_right(Tuple&& t, I&& i) {
+        return std::apply(
+            [&i](auto&&... args) {
+                return fold_right(std::forward<I>(i), std::forward<decltype(args)>(args)...);
+            },
+            std::forward<Tuple>(t)
+                );
+    }
+
+    template<typename Tuple, typename I>
+    constexpr decltype(auto) tuple_fold_left(Tuple&& t, I&& i) {
+        return std::apply(
+            [&i](auto&&... args) {
+                return fold_left(std::forward<I>(i), std::forward<decltype(args)>(args)...);
+            },
+            std::forward<Tuple>(t)
+                );
+    }
 
 }
 

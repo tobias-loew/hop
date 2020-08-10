@@ -945,9 +945,12 @@ namespace ns_test_21 {
 
 
 
+namespace     test4 {
+    int main4();
+}
 
 int main() {
-
+//    test4::main4();
 #define CALL_TEST(n)    \
     os << std::endl << "START TEST " #n << std::endl << std::endl;\
     ns_test_##n::test();

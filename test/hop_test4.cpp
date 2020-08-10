@@ -178,6 +178,70 @@ hop::ol<hop::pack<hop::gather<gathered_tag, int>>>
 
 
 
+    namespace ns_test_402 {
+        // a single overload with a single parameter
+
+        template<int N>
+        struct GeneralArrayStorage {};
+
+        class _bz_fortranTag {
+        public:
+            constexpr operator GeneralArrayStorage<1>() const
+            {
+                return {};
+            }
+
+        };
+        struct tag_ArrayStorage {};
+        struct init_default_GeneralArrayStorage {
+            constexpr GeneralArrayStorage<1> operator()() const { return {}; }
+        };
+
+    //    using array_storage_t = hop::tagged_ty<tag_ArrayStorage, hop::cpp_defaulted_param<GeneralArrayStorage<1>, init_default_GeneralArrayStorage>>;
+        using array_storage_t = hop::cpp_defaulted_param<GeneralArrayStorage<1>, init_default_GeneralArrayStorage>;
+
+        using overloads_t = hop::ol_list <
+            hop::ol<array_storage_t>
+        >;
+
+        template<typename... Ts, decltype((hop::enable<overloads_t, Ts...>()), 0) = 0 >
+        void foo(Ts&& ... ts) {
+            using OL = decltype(hop::enable<overloads_t, Ts...>());
+
+            //if constexpr (hop::has_tag_v<OL, tag_vector>) {
+            //    //output_args(std::forward<Ts>(ts)...);
+            //} else if constexpr (hop::has_tag_v<OL, tag_list_alloc>) {
+            //                using Actual = hop::deduced_types<OL>;
+
+            //                //typename hop::debug<Actual> d;
+            //                //typename hop::debug<boost::mp11::mp_second<Actual>> d;
+            //                using arg_0_t = boost::mp11::mp_first<Actual>;
+            //                arg_0_t t;
+            //                t = 42;
+            //              //z  typename hop::debug<arg_0_t>::type d;
+            //                int i = 42;
+            //                //output_args(std::forward<Ts>(ts)...);
+            //}
+            ////output_args(std::forward<Ts>(ts)...);
+        }
+
+
+
+        _bz_fortranTag fortranArray;
+
+
+        void test() {
+          //  foo(42,"");
+            //foo("hello");
+            //foo(42);
+            //foo(42, 1, 1);
+            //foo(42, 1);
+            foo(GeneralArrayStorage<1>{});
+            foo(fortranArray);
+            //foo();
+            //foo("a",1.5, "b", "two", "c", false);
+        }
+    }
 
     int main4() {
 
@@ -186,7 +250,7 @@ hop::ol<hop::pack<hop::gather<gathered_tag, int>>>
     std::cout << std::endl << "START TEST " #n << std::endl << std::endl;\
     ns_test_##n::test();
 
-//        CALL_TEST(401);
+        CALL_TEST(402);
 
 
         //static_assert(min_size<int, double>::value == 4);
