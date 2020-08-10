@@ -167,6 +167,8 @@ namespace hop {
     struct tagged_ty;
 
     // template to gather a parameter-list
+    // all types captured by a single gather-ed group are returned as a single index by get_args...
+    // allows for hierarchical structuring of paramemters
     template<class _Tag, class _Ty>
     struct gather;
 
@@ -1531,7 +1533,7 @@ namespace hop {
     }
 
 
-#if 0
+
     namespace impl {
 
         template<class _Overload, class _If, size_t index_specified, size_t index_expected>
@@ -1581,84 +1583,11 @@ namespace hop {
         }
     }
 
-#else
-    namespace impl {
-        template<class _Overload, class _If, class _Gathered, size_t index_specified, size_t index_expected>
-        struct get_args_if_helper_t;
 
-        template<class _Overload, class _If, class _Gathered, size_t index_specified, size_t index_expected>
-        constexpr decltype(auto) get_args_if_helper() {
-            using expected_types = expected_parameter_overload_type<_Overload>;
-
-            if constexpr (mp_size<expected_types>::value > index_expected) {
-                if constexpr (is_defaulted_param<mp_at_c<expected_types, index_expected>>::value) {
-                    if constexpr (_If::template fn<mp_at_c<expected_types, index_expected>>::value) {
-                        return std::tuple_cat(
-                            std::make_tuple(impl::get_init_type_t<mp_at_c<expected_types, index_expected>>{}()),
-                            get_args_if_helper<_Overload, _If, index_specified, index_expected + 1>()
-                        );
-                    } else {
-                        return get_args_if_helper<_Overload, _If, index_specified, index_expected + 1>();
-                    }
-                } else {
-                    static_assert(dependent_false<_Overload>::value);  // must be a defaulted_param
-                    return get_args_if_helper<_Overload, _If, index_specified, index_expected + 1>();
-                }
-            } else {
-                return std::tuple<>{};
-            }
-        }
-
-
-        template<class _Overload, class _If, class _Gathered, size_t index_specified, size_t index_expected, class T, class... Ts>
-        constexpr decltype(auto) get_args_if_helper(T&& t, Ts&&... ts) {
-            using expected_types = expected_parameter_overload_type<_Overload>;
-
-            if constexpr (is_defaulted_param<mp_at_c<expected_types, index_expected>>::value) {
-                if constexpr (_If::template fn<mp_at_c<expected_types, index_expected>>::value) {
-                    return std::tuple_cat(
-                        std::make_tuple(impl::get_init_type_t<mp_at_c<expected_types, index_expected>>{}()),
-                        get_args_if_helper<_Overload, _If, index_specified, index_expected + 1>(std::forward<T>(t), std::forward<Ts>(ts)...)
-                    );
-                } else {
-                    return get_args_if_helper<_Overload, _If, index_specified, index_expected + 1>(std::forward<T>(t), std::forward<Ts>(ts)...);
-                }
-            } else {
-                if constexpr (_If::template fn<mp_at_c<actual_parameter_overload_type<_Overload>, index_specified>>::value) {
-                    return std::tuple_cat(std::forward_as_tuple(std::forward<T>(t)), get_args_if_helper<_Overload, _If, index_specified + 1, index_expected + 1>(std::forward<Ts>(ts)...));
-                } else {
-                    return get_args_if_helper<_Overload, _If, index_specified + 1, index_expected + 1>(std::forward<Ts>(ts)...);
-                }
-            }
-        }
-
-// TODO: implement get_args_if
-        template<class _Overload, class _If, size_t index_specified, size_t index_expected>
-        struct get_args_if_helper_t<_Overload, _If, mp_list<>, index_specified, index_expected> {
-            static constexpr decltype(auto) get_args_if() { // no args expected
-                return std::tuple<>{};
-            }
-        };
-
-        template<class _Overload, class _If, class Head, class... Tail, size_t index_specified, size_t index_expected>
-        struct get_args_if_helper_t<_Overload, _If, mp_list<Head, Tail...>, index_specified, index_expected> {
-            template<class... Ts>
-            static constexpr decltype(auto) get_args_if(Ts&&... ts) {
-                return std::tuple<>{};
-            }
-        };
-
-
-        //template<class _Overload, class _If, class _Gathered, size_t index_specified, size_t index_expected, class T, class... Ts>
-            //constexpr decltype(auto) get_args_if_helper(T && t, Ts &&... ts) {
-
-    }
-#endif
 
     template<class _Overload, class _If, class... Ts>
     constexpr decltype(auto) get_args_if_q(Ts&&... ts) {
-     //   return impl::get_args_if_helper<_Overload, _If, 0, 0>(std::forward<Ts>(ts)...);
-        return impl::get_args_if_helper_t<_Overload, _If, gathered_type<_Overload>, 0, 0>::get_args_if(std::forward<Ts>(ts)...);
+        return impl::get_args_if_helper<_Overload, _If, 0, 0>(std::forward<Ts>(ts)...);
     }
 
     template<class _Overload, template<class> class _If, class... Ts>
@@ -1674,6 +1603,82 @@ namespace hop {
     template<class _Overload, class _Tag, class... Ts>
     constexpr decltype(auto) get_tagged_args(Ts&&... ts) {
         return get_args_if_q< _Overload, impl::has_tag<_Tag>>(std::forward<Ts>(ts)...);
+    }
+
+
+// version for gathering
+
+    namespace impl {
+        template<class _Overload, class _If, class Gathering, class _Gathered, size_t index_specified, size_t index_expected>
+        struct get_args_if_gathered_helper_t;
+
+        template<class _Overload, class _If, class Gathering, class _Gathered, size_t index_specified, size_t index_expected>
+        constexpr decltype(auto) get_args_if_gathered_helper() {
+            using expected_types = expected_parameter_overload_type<_Overload>;
+
+            if constexpr (mp_size<expected_types>::value > index_expected) {
+                if constexpr (is_defaulted_param<mp_at_c<expected_types, index_expected>>::value) {
+                    if constexpr (_If::template fn<mp_at_c<expected_types, index_expected>>::value) {
+                        return std::tuple_cat(
+                            std::make_tuple(impl::get_init_type_t<mp_at_c<expected_types, index_expected>>{}()),
+                            get_args_if_gathered_helper<_Overload, _If, index_specified, index_expected + 1>()
+                        );
+                    } else {
+                        return get_args_if_gathered_helper<_Overload, _If, index_specified, index_expected + 1>();
+                    }
+                } else {
+                    static_assert(dependent_false<_Overload>::value);  // must be a defaulted_param
+                    return get_args_if_gathered_helper<_Overload, _If, index_specified, index_expected + 1>();
+                }
+            } else {
+                return std::tuple<>{};
+            }
+        }
+
+
+        template<class _Overload, class _If, class _Gathered, size_t index_specified, size_t index_expected, class T, class... Ts>
+        constexpr decltype(auto) get_args_if_gathered_helper(T&& t, Ts&&... ts) {
+            using expected_types = expected_parameter_overload_type<_Overload>;
+
+            if constexpr (is_defaulted_param<mp_at_c<expected_types, index_expected>>::value) {
+                if constexpr (_If::template fn<mp_at_c<expected_types, index_expected>>::value) {
+                    return std::tuple_cat(
+                        std::make_tuple(impl::get_init_type_t<mp_at_c<expected_types, index_expected>>{}()),
+                        get_args_if_gathered_helper<_Overload, _If, index_specified, index_expected + 1>(std::forward<T>(t), std::forward<Ts>(ts)...)
+                    );
+                } else {
+                    return get_args_if_gathered_helper<_Overload, _If, index_specified, index_expected + 1>(std::forward<T>(t), std::forward<Ts>(ts)...);
+                }
+            } else {
+                if constexpr (_If::template fn<mp_at_c<actual_parameter_overload_type<_Overload>, index_specified>>::value) {
+                    return std::tuple_cat(std::forward_as_tuple(std::forward<T>(t)), get_args_if_gathered_helper<_Overload, _If, index_specified + 1, index_expected + 1>(std::forward<Ts>(ts)...));
+                } else {
+                    return get_args_if_gathered_helper<_Overload, _If, index_specified + 1, index_expected + 1>(std::forward<Ts>(ts)...);
+                }
+            }
+        }
+
+// TODO: implement get_args_if_gathered_helper_t
+        template<class _Overload, class _If, class Gathering, size_t index_specified, size_t index_expected>
+        struct get_args_if_gathered_helper_t<_Overload, _If, Gathering, mp_list<>, index_specified, index_expected> {
+            static constexpr decltype(auto) get_args_if_gathered() { // no args expected
+                return std::tuple<>{};
+            }
+        };
+
+        template<class _Overload, class _If, class Gathering, class Head, class... Tail, size_t index_specified, size_t index_expected>
+        struct get_args_if_gathered_helper_t<_Overload, _If, Gathering, mp_list<Head, Tail...>, index_specified, index_expected> {
+            template<class... Ts>
+            static constexpr decltype(auto) get_args_if_gathered(Ts&&... ts) {
+                return std::tuple<>{};
+            }
+        };
+    }
+
+    template<class _Overload, class _If, class _Gathering, class... Ts>
+    constexpr decltype(auto) get_args_if_gathered_q(Ts&&... ts) {
+        static_assert(dependent_false<_Overload>::value, "get_args_if_gathered_helper_t not yet implemented");
+        return impl::get_args_if_gathered_helper_t<_Overload, _If, _Gathering, gathered_type<_Overload>, 0, 0>::get_args_if_gathered(std::forward<Ts>(ts)...);
     }
 
 
