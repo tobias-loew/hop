@@ -369,9 +369,11 @@ namespace ns_test_8 {
         hop::ol<hop::pack<hop::tagged_ty<tag_int, int>>, hop::pack<hop::tagged_ty<tag_double, double>>>     // a list of ints followed by a list of doubles
     >;
 
-    template<typename... Ts, decltype((hop::enable<overloads_t, Ts...>()), 0) = 0 >
+//  this way we won't have to repeat the enabling-type (and it's more convenient when used in member-initialization in constructors
+    template<typename... Ts, decltype(hop::enable<overloads_t, Ts...>())* OLv = nullptr, typename OL = std::remove_pointer_t<decltype(OLv)>>
     void foo(Ts&& ... ts) {
-        using OL = decltype(hop::enable<overloads_t, Ts...>());
+        // prevent user from explicitly specifying OL 
+        static_assert(std::is_same_v<OL, std::remove_pointer_t<decltype(OLv)>>, "explicit specification is not supported");
 
         auto&& int_args = hop::get_tagged_args<OL, tag_int>(std::forward<Ts>(ts)...);
         auto&& double_args = hop::get_tagged_args<OL, tag_double>(std::forward<Ts>(ts)...);

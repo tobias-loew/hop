@@ -149,7 +149,7 @@ namespace hop {
 
     // repetition
     // template to create a repeated [min, .. , max] parameter
-    template<class _Ty, size_t _min, size_t _max = infinite>
+    template<class _Ty, size_t _min, size_t _max = _min>
     struct repeat;
 
 
@@ -191,6 +191,13 @@ namespace hop {
     template<class _Ty>
     using non_empty_pack = repeat<_Ty, 1, infinite>;
 
+    // template to repeat a type at least N-times
+    template<class _Ty, size_t N>
+    using repeat_at_least = repeat<_Ty, N, infinite>;
+
+    // template to repeat a type at most N-times
+    template<class _Ty, size_t N>
+    using repeat_at_most = repeat<_Ty, 0, N>;
 
     // template access parameter-type in tagged_ty
     namespace impl {
@@ -749,8 +756,7 @@ namespace hop {
             _Info,
             _If,
             _Gathered
-            > {
-        };
+            > {};
 
 
 
@@ -1224,8 +1230,7 @@ namespace hop {
 
         template <size_t _arg_count, size_t _Idx, class... _TypeIf_list>
         struct _expanded_overload_set<_arg_count, _Idx, mp_list<_TypeIf_list...>>
-            : _expanded_overload_set_<_arg_count, _Idx, mp_list<_TypeIf_list...>> {
-        };
+            : _expanded_overload_set_<_arg_count, _Idx, mp_list<_TypeIf_list...>> {};
 
 
         // specialization to avoid compilation errors for "using ...::test" when no overload is generated
@@ -1790,7 +1795,7 @@ namespace hop {
 
 
     // helper functions
-    
+
     // map for tuples
     template <class F, class Tuple>
     constexpr decltype(auto) tuple_map(F&& f, Tuple&& t) {

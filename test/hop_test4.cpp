@@ -102,7 +102,7 @@ namespace test4 {
 //
 //        using overloads_t = hop::ol_list <
 ////            hop::ol<hop::pack<int>>     // accept a (possibly empty) list of ints
-//            hop::ol<hop::repeat<int,2,2>>     // accept a (possibly empty) list of ints
+//            hop::ol<hop::repeat<int,2>>     // accept exactly 2 ints
 //        >;
 //
 //        template<typename... Ts, decltype((hop::enable<overloads_t, Ts...>()), 0) = 0 >
