@@ -6,7 +6,7 @@ Copyright Tobias Loew 2019.
 Distributed under the Boost Software License, Version 1.0. (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
 # What is hop
-hop is a small library the enables you to create *proper* homogeneous variadic function parameters
+hop is a small library that allows to create *proper* homogeneous variadic function parameters
 
 # What does *proper* mean
 *proper* means, that the functions you equip with hop's homogeneous variadic parameters are subject to C++ overload resolution.
@@ -375,6 +375,9 @@ Inside a function `hop` provides several templates and functions for inspecting 
     }
 
 Examples can be found in test\hop_test.cpp.
+
+# hop on FluentC++
+hop was the subject of a guest-post at FluentC++ "How to Define A Variadic Number of Arguments of the Same Type – Part 4", released at 07/01/20 (https://www.fluentcpp.com/2020/01/07/how-to-define-a-variadic-number-of-arguments-of-the-same-type-part-4/)
 
 
 # That's one small step for man, a lot of hops for a bunny!
