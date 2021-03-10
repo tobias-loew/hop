@@ -14,6 +14,7 @@
 #define HOP_HOP_HPP_INCLUDED
 
 
+#include <limits>
 #include <type_traits>
 #include <algorithm>
 #include <boost/version.hpp>
@@ -22,11 +23,11 @@
 
 #define HOP_ENABLE_REPEAT_OPTIMIZATION
 
-#ifndef HOP_MAX_DEDUDCABLE_TYPES
-#define HOP_MAX_DEDUDCABLE_TYPES 10
+#ifndef HOP_MAX_DEDUCIBLE_TYPES
+#define HOP_MAX_DEDUCIBLE_TYPES 10
 #endif
 
-#define HOP_MAX_DEDUDCABLE_TYPES_END BOOST_PP_INC(HOP_MAX_DEDUDCABLE_TYPES)
+#define HOP_MAX_DEDUCIBLE_TYPES_END BOOST_PP_INC(HOP_MAX_DEDUCIBLE_TYPES)
 
 // homogeneous varaiadic overload sets
 namespace hop {
@@ -249,7 +250,7 @@ namespace hop {
             static mp_list<std::true_type, mp_list<BOOST_PP_ENUM_PARAMS(n, T)>> test(Pattern<BOOST_PP_ENUM_PARAMS(n, T)>);
 
             // overloads to deduce 1 - 10 template types
-            BOOST_PP_REPEAT_FROM_TO(1, HOP_MAX_DEDUDCABLE_TYPES_END, HOP_MACRO_LOCAL_DEDUCER_TEST, _)
+            BOOST_PP_REPEAT_FROM_TO(1, HOP_MAX_DEDUCIBLE_TYPES_END, HOP_MACRO_LOCAL_DEDUCER_TEST, _)
 
 #undef HOP_MACRO_LOCAL_DEDUCER_TEST
 
@@ -274,7 +275,7 @@ namespace hop {
             using fn = Pattern<BOOST_PP_ENUM_PARAMS(n, T)>;      \
         };
 
-        BOOST_PP_REPEAT_FROM_TO(1, HOP_MAX_DEDUDCABLE_TYPES_END, HOP_MACRO_PATTERN_HELPER, _)
+        BOOST_PP_REPEAT_FROM_TO(1, HOP_MAX_DEDUCIBLE_TYPES_END, HOP_MACRO_PATTERN_HELPER, _)
 
 #undef HOP_MACRO_PATTERN_HELPER
 
@@ -292,7 +293,7 @@ namespace hop {
             static std::integral_constant<size_t, n> arity_test(Pattern_<BOOST_PP_ENUM_PARAMS(n, T)>);
 
 
-            BOOST_PP_REPEAT_FROM_TO(1, HOP_MAX_DEDUDCABLE_TYPES_END, HOP_MACRO_ARITY_TEST, _)
+            BOOST_PP_REPEAT_FROM_TO(1, HOP_MAX_DEDUCIBLE_TYPES_END, HOP_MACRO_ARITY_TEST, _)
 
 #undef HOP_MACRO_ARITY_TEST
 
@@ -336,7 +337,7 @@ namespace hop {
             static mp_list<std::true_type, mp_list<BOOST_PP_ENUM_PARAMS(n, T)>> test(typename lazy_expander<Pattern_q>::type::template fn<BOOST_PP_ENUM_PARAMS(n, T)>...);
 
             // overloads to deduce 1 - 10 template types
-            BOOST_PP_REPEAT_FROM_TO(1, HOP_MAX_DEDUDCABLE_TYPES_END, HOP_MACRO_DEDUCER_T_TEST, _)
+            BOOST_PP_REPEAT_FROM_TO(1, HOP_MAX_DEDUCIBLE_TYPES_END, HOP_MACRO_DEDUCER_T_TEST, _)
 
 #undef HOP_MACRO_DEDUCER_T_TEST
 

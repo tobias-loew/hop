@@ -247,7 +247,7 @@ A single overload `hop::ol<...>` consists of a list of types that are:
     Please note, that in the definition of the template-alias for `set_alias` the unused template type `class T1` is required, since `T1` and `T2` are deduced by matching `map_alias` and `set_alias` *simultaneously* 
     and for all templates in the same order. Template non-type parameters are currently not supported.
     
-  - in the *local* version the types are deduced intependently for each argument, for example
+  - in the *local* version the types are deduced independently for each argument, for example
     ```
     template<class T>
     using map_vector = std::vector<T>const&;
