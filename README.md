@@ -73,8 +73,9 @@ using overloads = hop::ol_list <
 >;
 
 
-template<typename... Ts, decltype((hop::enable<overloads, Ts...>()), 0) = 0 >
+template<typename... Ts, hop::enable_test<overloads, Ts...> = 0 >
 void foo(Ts&& ... ts) {
+    using OL = hop::enable_t<overloads, Ts...>;
 }
 ```
 Now, we can call `foo` the same way we did for the traditional (bounded) overload-sets:
@@ -83,7 +84,12 @@ Now, we can call `foo` the same way we did for the traditional (bounded) overloa
     foo(1.5, -0.4, 12.0);
     foo(42, 0.5);           // error: ambigous
 ```
-Let's see what we can do inside of `foo`. The type `decltype(hop::enable<overloads, Ts...>())` holds information about the selected overload, e.g. its zero-based `index`:
+Let's take a look a the types that are involved:
+- `hop::enable_t<overloads, Ts...>` is defined as `decltype(hop::enable<overloads, Ts...>())` and holds the information about the selected overload
+
+while the almost identical 
+- `hop::enable_test<overloads, Ts...>` is defined as `decltype((hop::enable<overloads, Ts...>()), 0)` and can be used as SFINAE condition (as non-type template parameter of type `int`, which usually has the default value `0`).
+
 ```
 using overloads = hop::ol_list <
     hop::ol<int, hop::non_empty_pack<int>>,
@@ -95,9 +101,9 @@ void output_as(T&& t) {
     std::cout << (Out)t << std::endl;
 }
 
-template<typename... Ts, decltype((hop::enable<overloads, Ts...>()), 0) = 0 >
+template<typename... Ts, hop::enable_test<overloads, Ts...> = 0 >
 void foo(Ts&& ... ts) {
-    using OL = decltype(hop::enable<overloads, Ts...>());
+    using OL = hop::enable_t<overloads, Ts...>;
 
     if constexpr (hop::index<OL>::value == 0) {
         std::cout << "got a bunch of ints\n";
@@ -133,9 +139,9 @@ using overloads = hop::ol_list <
     hop::tagged_ol<tag_doubles, hop::non_empty_pack<double>>
 >;
 
-template<typename... Ts, decltype((hop::enable<overloads, Ts...>()), 0) = 0 >
+template<typename... Ts, hop::enable_test<overloads, Ts...> = 0 >
 void foo(Ts&& ... ts) {
-    using OL = decltype(hop::enable<overloads, Ts...>());
+    using OL = hop::enable_t<overloads, Ts...>;
 
     if constexpr (hop::has_tag<OL, tag_ints>::value) {
       // ...
@@ -146,6 +152,31 @@ void foo(Ts&& ... ts) {
     }
 }
 ```
+Instead of using just a single entry-point for the overload-set (or as Quuxplusone called it: "one entry point to rule them all") you can use `hop::match_tag_t` to select only allow oveloads with the given tag. In the above case, we would have:
+```
+struct tag_ints {};
+struct tag_doubles {};
+
+using overloads = hop::ol_list <
+    hop::tagged_ol<tag_ints, hop::non_empty_pack<int>>,
+    hop::tagged_ol<tag_doubles, hop::non_empty_pack<double>>
+>;
+
+template<typename... Ts,
+	hop::match_tag_t<overloads, tag_ints, Ts...> = 0
+>
+	void foo(Ts&& ... ts) {
+	// ...
+}
+
+template<typename... Ts,
+	hop::match_tag_t<overloads, tag_doubles, Ts...> = 0
+>
+	void foo(Ts&& ... ts) {
+	// ...
+}
+```
+
 We can also tag types of an overload. This is useful, when we want to access the argument(s) belonging to a certain type of the overload: 
 ```
 struct tag_ints {};
@@ -157,9 +188,9 @@ using overloads = hop::ol_list <
     hop::tagged_ol<tag_doubles, std::string, hop::non_empty_pack<hop::tagged_ty<tag_numeric, double>>>
 >;
 
-template<typename... Ts, decltype((hop::enable<overloads, Ts...>()), 0) = 0 >
+template<typename... Ts, hop::enable_test<overloads, Ts...> = 0 >
 void foo(Ts&& ... ts) {
-    using OL = decltype(hop::enable<overloads, Ts...>());
+    using OL = hop::enable_t<overloads, Ts...>;
 
     if constexpr (hop::has_tag<OL, tag_ints>::value) {
           auto&& numeric_args = hop::get_tagged_args<OL, tag_numeric>(std::forward<Ts>(ts)...);
@@ -213,9 +244,9 @@ A single overload `hop::ol<...>` consists of a list of types that are:
       hop::adapted<adapt_qux>
     >;
     
-    template<typename... Ts, decltype((hop::enable<overloads_t, Ts...>()), 0) = 0 >
+    template<typename... Ts, hop::enable_test<overloads_t, Ts...> = 0 >
     decltype(auto) foo(Ts&& ... ts) {
-        using OL = decltype(hop::enable<overloads_t, Ts...>());
+        using OL = hop::enable_t<overloads_t, Ts...>;
         if constexpr (hop::is_adapted_v<OL>) {
             return hop::forward_adapted<OL>(std::forward<Ts>(ts)...);
         }

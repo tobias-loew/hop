@@ -1606,6 +1606,25 @@ namespace hop {
     constexpr decltype(overload_set<_Overload_Type_set, sizeof...(_Tys)>{}.template test<_Tys...>(std::declval<_Tys>()...)) enable();
 
 
+    template<class Overloads, class... Ts>
+    using enable_t = decltype(enable<Overloads, Ts...>());
+
+    template<class Overloads, class... Ts>
+    using enable_test = decltype((enable<Overloads, Ts...>()), 0);
+
+    template<class Tag, class Overloads, class... Ts>
+	constexpr bool ol_has_tag_v = has_tag_v<enable_t<Overloads, Ts...>, Tag>;
+
+	template<class Overloads, class... Ts>
+	struct match_tag {
+		template<class Tag>
+		using has = std::enable_if_t<ol_has_tag_v<Tag, Overloads, Ts...>, int>;
+	};
+
+	template<class Overloads, class Tag, class... Ts>
+	using match_tag_t = typename match_tag<Overloads, Ts...>::template has<Tag>;
+
+
 
     template<class _Base, class... _Ty>
     using ol_extend = mp_append<mp_list<_Ty...>, mp_transform<impl::make_ol_from_base_t, _Base>>;
