@@ -325,15 +325,20 @@ Type =
     | tagged_ty&lt;<i>tag</i>, Type> 
     ;
 
-ArgumentList =
+Argument =
     Type 
-    | repeat&lt;ArgumentList, <i>min</i>, <i>max</i>> 
-    | seq&lt;ArgumentList,...,ArgumentList> 
-    | alt&lt;ArgumentList,...,ArgumentList> 
+    | repeat&lt;Argument, <i>min</i>, <i>max</i>> 
+    | seq&lt;ArgumentList> 
+    | alt&lt;ArgumentList> 
     | cpp_defaulted_param&lt;Type, <i>init</i>>
     | general_defaulted_param&lt;Type, <i>init</i>> 
     | fwd
     | fwd_if&lt;<i>condition</i>>
+    
+ArgumentList =
+    Argument 
+    | ArgumentList, Argument
+    
 <!---    | gather&lt;<i>tag</i>, ArgumentList> --->
 </code></pre>
 
