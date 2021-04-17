@@ -170,7 +170,7 @@ namespace hop {
         };
     }
 
-    // template to create a parameter with default value (C++-style defaulted parameter, only at end of parameter list)
+    // template to provide a default-created value
     namespace impl {
         template<class _Ty>
         struct default_create {
@@ -178,11 +178,11 @@ namespace hop {
         };
     }
 
-    // template to create a parameter with default value (C++-style defaulted parameter, only at end of parameter list)
+    // template to create a parameter with default value (C++-style defaulted parameter, only at end of the parameter list)
     template<class _Ty, class _Init = impl::default_create<_Ty>>
     struct cpp_defaulted_param;
 
-    // template to create a parameter with default value (C++-style, only at end of parameter list)
+    // template to create a parameter with default value (can appear at any position of the parameter list)
     template<class _Ty, class _Init = impl::default_create<_Ty>>
     struct general_defaulted_param;
 
