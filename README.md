@@ -318,12 +318,10 @@ The following grammar describes how to build argument-lists for overload-sets:
 <pre><code>
 CppType =  
     <i>any C++ type</i>
-    ;
 
 Type =  
     CppType
     | tagged_ty&lt;<i>tag</i>, Type> 
-    ;
 
 Argument =
     Type 
