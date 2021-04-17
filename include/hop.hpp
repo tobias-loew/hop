@@ -152,6 +152,10 @@ namespace hop {
     template<class _Ty>
     using non_empty_pack = repeat<_Ty, 1, infinite>;
 
+    // exactly n-times
+    template<class _Ty, size_t _times>
+    using n_times = repeat<_Ty, _times, _times>;
+
 
     // template access parameter-type in tagged_ty
     namespace impl {
