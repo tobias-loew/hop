@@ -317,7 +317,7 @@ All overloads for a single function are gathered in a `hop::ol_list<...>`
 The following grammar describes how to build argument-lists for overload-sets:
 <pre><code>
 CppType =  
-    <i>any C++ type</i>
+    <i>any (possibly cv-qualified) C++ type</i>
 
 Type =  
     CppType
