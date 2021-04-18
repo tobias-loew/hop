@@ -29,7 +29,7 @@
 
 #define HOP_MAX_DEDUCIBLE_TYPES_END BOOST_PP_INC(HOP_MAX_DEDUCIBLE_TYPES)
 
-// homogeneous varaiadic overload sets
+// homogeneous variadic overload sets
 namespace hop {
     using namespace boost::mp11;
 
@@ -137,24 +137,24 @@ namespace hop {
 
     // syntactic sugar
 
-    // type to create no parameter
-    using eps = repeat<char, 0, 0>;
-
-    // template to create an optional parameter (WITHOUT default value)
-    template<class _Ty>
-    using optional = repeat<_Ty, 0, 1>;
-
-    // template to create a parameter pack
+    // parameter pack
     template<class _Ty>
     using pack = repeat<_Ty, 0, infinite>;
 
-    // template to create a non-empty parameter pack
+    // non-empty parameter pack
     template<class _Ty>
     using non_empty_pack = repeat<_Ty, 1, infinite>;
 
-    // exactly n-times
+    // optional parameter (w/o default value)
+    template<class _Ty>
+    using optional = repeat<_Ty, 0, 1>;
+
+	// exactly n-times
     template<class _Ty, size_t _times>
     using n_times = repeat<_Ty, _times, _times>;
+
+    // no parameter (epsilon)
+    using eps = repeat<char, 0, 0>;
 
 
     // template access parameter-type in tagged_ty
@@ -178,11 +178,13 @@ namespace hop {
         };
     }
 
-    // template to create a parameter with default value (C++-style defaulted parameter, only at end of the parameter list)
+    // template to create C++-style defaulted parameter 
+    // that can appear only at end of the parameter list
     template<class _Ty, class _Init = impl::default_create<_Ty>>
     struct cpp_defaulted_param;
 
-    // template to create a parameter with default value (can appear at any position of the parameter list)
+    // template to create a parameter with a default value 
+    // that can appear at any position of the parameter list
     template<class _Ty, class _Init = impl::default_create<_Ty>>
     struct general_defaulted_param;
 
@@ -190,7 +192,8 @@ namespace hop {
     template<class _Ty>
     struct tmpl_q;
 
-    // template to create a forwarded parameter: _Ty has to be a quoted meta-function
+    // template to create a forwarded parameter:
+    // F has to be a meta-function in the sense of Boost.MP11
     template<template<class...> class F>
     using tmpl = tmpl_q<mp_quote<F>>;
 
@@ -358,12 +361,15 @@ namespace hop {
     }
 
 
-    // struct to create guarded forward-reference
+
+    // forward-reference guarded by quoted meta-function
     template<class _If>
     using fwd_if_q = tmpl_q<impl::if_test<_If>>;
-
+   
+    // forward-reference guarded by meta-function (Boost.MP11-style)
     template<template<class> class _If>
     using fwd_if = fwd_if_q<mp_quote<_If>>;
+
 
     template<class _If>
     using fwd_if_not_q = tmpl_q<impl::if_not_test<_If>>;

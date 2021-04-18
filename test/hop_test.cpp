@@ -872,13 +872,12 @@ namespace ns_test_20 {
         output_args(t, d1, d2);
     }
 
+    // adapt overload-set 'qux'
     struct adapt_qux {
-
         template<class... Ts>
         static decltype(qux(std::declval<Ts>()...)) forward(Ts&&... ts) {
             return qux(std::forward<Ts>(ts)...);
         }
-
     };
 
     using overloads_t = hop::ol_list <
