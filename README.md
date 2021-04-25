@@ -10,10 +10,10 @@ Distributed under the Boost Software License, Version 1.0. (See accompanying fil
 ![luna-bunny-wants-to-hop](/pictures/Luna_Meersau.png)
 
 
-# What is hop
+# what is hop
 hop is a small library that allows to create *proper* homogeneous variadic function parameters
 
-# What does *proper* mean
+# what does *proper* mean
 *proper* means, that the functions you equip with hop's homogeneous variadic parameters are subject to C++ overload resolution.
 Let me show you an example:
 
@@ -69,7 +69,7 @@ But when we now call `foo(42)` or `foo(0.5, -1.3)` we always get ambigous call e
 
 And here we are at the core of the problem: when we have multiple functions defined as above C++'s overload resolution won't step in to select the best match - they're all best matches (as long as we only consider only template functions). And here __hop__ can help...
 
-# Creating overload-sets with __hop__
+# creating overload-sets with __hop__
 With __hop__ we define only a single overload of `foo` but with a quite sophisticated SFINAE condition:
 ```
 using overloads = hop::ol_list <
@@ -419,9 +419,9 @@ Examples can be found in test\hop_test.cpp.
 hop was the subject of a guest-post at FluentC++ "How to Define A Variadic Number of Arguments of the Same Type – Part 4", released at 07/01/20 (https://www.fluentcpp.com/2020/01/07/how-to-define-a-variadic-number-of-arguments-of-the-same-type-part-4/)
 
 
-# this post is presented to you by the hop-experts Luna & Rolf
+# this post was presented to you by the hop-experts<br/>Luna & Rolf
 ![hop-experts](/pictures/hop_experts_clipped.jpg)
 
-# That's one small step for man, a lot of hops for a bunny!
+# that's one small step for man, a lot of hops for a bunny!
 ![luna-bunny](/pictures/luna.png)
 `bunny(hop, hop, hop, ...);`
