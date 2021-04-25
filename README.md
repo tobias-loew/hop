@@ -419,7 +419,7 @@ Examples can be found in test\hop_test.cpp.
 hop was the subject of a guest-post at FluentC++ "How to Define A Variadic Number of Arguments of the Same Type – Part 4", released at 07/01/20 (https://www.fluentcpp.com/2020/01/07/how-to-define-a-variadic-number-of-arguments-of-the-same-type-part-4/)
 
 
-# this post was presented to you by the hop-experts<br/>Luna & Rolf
+# this library is presented to you by the hop-experts<br/>Luna & Rolf
 ![hop-experts](/pictures/hop_experts_clipped.jpg)
 
 # that's one small step for man, a lot of hops for a bunny!
