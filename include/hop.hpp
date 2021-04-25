@@ -35,7 +35,7 @@ namespace hop {
 
 #if BOOST_VERSION < 107300
     // definition of mp_flatten from https://github.com/boostorg/mp11/blob/master/include/boost/mp11/algorithm.hpp (master, b24d228)
-    // most likely it will be part of boost version 1.73
+    // it is part of Boost.MP11 starting version 1.73
     // mp_flatten<L, L2 = mp_clear<L>>
     namespace detail {
 
@@ -1032,16 +1032,16 @@ namespace hop {
             static constexpr size_t _max_rest = mp_second<_minmax>::value;
             static constexpr size_t _min = mp_at_c<_minmax, 2>::value;
             static constexpr size_t _max = seen_defaulted
-                ? 0 // no further args after a daulfted
+                ? 0 // no further args after a defaulted
                 : mp_at_c<_minmax, 3>::value;
 
             static constexpr size_t _lower_bound = std::max(_min, minus_non_negative(_arg_count, _max_rest));
             static constexpr size_t _upper_bound = std::min(_max, minus_non_negative(_arg_count, _min_rest));
 
-            // drop funktioniert nicht, wenn mehr als der Inhalt gedroppt wird
+            
             using valid_arg_counts = mp_drop_c<
                 mp_iota_c<_upper_bound + 1>,
-                std::min(_lower_bound, _upper_bound + 1)
+                std::min(_lower_bound, _upper_bound + 1) // attention: mp_drop doesn't work, when dropping more than the dropped-from contains!!!
             >;
 
             template<size_t args_used>
@@ -1619,8 +1619,9 @@ namespace hop {
     template<class Overloads, class... Ts>
     using enable_t = decltype(enable<Overloads, Ts...>());
 
-    template<class Overloads, class... Ts>
-    using enable_test = decltype((enable<Overloads, Ts...>()), 0);
+    // deprecated: use "enable_t<...>* = nullptr" instead of "enable_test<...> = 0"
+    //template<class Overloads, class... Ts>
+    //using enable_test = decltype((enable<Overloads, Ts...>()), 0);
 
     template<class Tag, class Overloads, class... Ts>
 	constexpr bool ol_has_tag_v = has_tag_v<enable_t<Overloads, Ts...>, Tag>;

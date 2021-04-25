@@ -23,6 +23,8 @@
 #include <map>
 #include "..\include\hop.hpp"
 
+// intentionally NOT "using namespace hop;" to better show, where hop-types are used 
+
 
 auto&& os = std::ofstream("hop_out.txt");
 
@@ -137,10 +139,10 @@ struct output_args_ {
 
 
 
-    template<class... Ts>
-    void operator()(Ts&& ... ts) const {
+    template<class... Args>
+    void operator()(Args&& ... ts) const {
         os << "args:" << std::endl;
-        ((os << typeid(ts).name() << ": " << make_printable(std::forward<Ts>(ts)) << std::endl), ...);
+        ((os << typeid(ts).name() << ": " << make_printable(std::forward<Args>(ts)) << std::endl), ...);
         os << std::endl;
     }
 };
@@ -155,11 +157,15 @@ namespace ns_test_1 {
         hop::ol<std::string>        // one std::string
     >;
 
-    template<typename... Ts, hop::enable_test<overloads_t, Ts...> = 0 >
-    void foo(Ts&& ... ts) {
-        using OL = hop::enable_t<overloads_t, Ts...>;
+    // alias template to simplify repetitions
+    template<typename... Args>
+    using enabler = hop::enable_t<overloads_t, Args...>;
 
-        output_args(std::forward<Ts>(ts)...);
+    template<typename... Args, hop::enable_t<overloads_t, Args...>* = nullptr >
+    void foo(Args&& ... ts) {
+        using OL = hop::enable_t<overloads_t, Args...>;
+
+        output_args(std::forward<Args>(ts)...);
     }
 
 
@@ -179,11 +185,11 @@ namespace ns_test_2 {
         hop::ol<hop::pack<int>>     // accept a (possibly empty) list of ints
     >;
 
-    template<typename... Ts, hop::enable_test<overloads_t, Ts...> = 0 >
-    void foo(Ts&& ... ts) {
-        using OL = hop::enable_t<overloads_t, Ts...>;
+    template<typename... Args, hop::enable_t<overloads_t, Args...>* = nullptr >
+    void foo(Args&& ... ts) {
+        using OL = hop::enable_t<overloads_t, Args...>;
 
-        output_args(std::forward<Ts>(ts)...);
+        output_args(std::forward<Args>(ts)...);
     }
 
 
@@ -205,11 +211,11 @@ namespace ns_test_3 {
         hop::ol<hop::repeat<int, 2, 5>>     // 2 - 5 ints
     >;
 
-    template<typename... Ts, hop::enable_test<overloads_t, Ts...> = 0 >
-    void foo(Ts&& ... ts) {
-        using OL = hop::enable_t<overloads_t, Ts...>;
+    template<typename... Args, hop::enable_t<overloads_t, Args...>* = nullptr >
+    void foo(Args&& ... ts) {
+        using OL = hop::enable_t<overloads_t, Args...>;
 
-        output_args(std::forward<Ts>(ts)...);
+        output_args(std::forward<Args>(ts)...);
     }
 
 
@@ -232,11 +238,11 @@ namespace ns_test_4 {
         hop::ol<hop::non_empty_pack<int>, std::string>     // a non-empty list of ints followed by a std::string
     >;
 
-    template<typename... Ts, hop::enable_test<overloads_t, Ts...> = 0 >
-    void foo(Ts&& ... ts) {
-        using OL = hop::enable_t<overloads_t, Ts...>;
+    template<typename... Args, hop::enable_t<overloads_t, Args...>* = nullptr >
+    void foo(Args&& ... ts) {
+        using OL = hop::enable_t<overloads_t, Args...>;
 
-        output_args(std::forward<Ts>(ts)...);
+        output_args(std::forward<Args>(ts)...);
     }
 
 
@@ -261,20 +267,20 @@ namespace ns_test_5 {
         hop::ol<hop::non_empty_pack<int>, hop::cpp_defaulted_param<std::string, init_default>, hop::cpp_defaulted_param<std::wstring>>     // a non-empty list of ints followed by a defaulted std::string and a defaulted std::wstring
     >;
 
-    template<typename... Ts, hop::enable_test<overloads_t, Ts...> = 0 >
-    void foo(Ts&& ... ts) {
-        using OL = hop::enable_t<overloads_t, Ts...>;
+    template<typename... Args, hop::enable_t<overloads_t, Args...>* = nullptr >
+    void foo(Args&& ... ts) {
+        using OL = hop::enable_t<overloads_t, Args...>;
 
         // Attention: 
         // output_args(ts...)
         // will only output the caller provided arguments.
         // to get the parameters with defaulted parameters call
-        // hop::get_args<OL>(std::forward<Ts>(ts)...)
+        // hop::get_args<OL>(std::forward<Args>(ts)...)
         // which returns a std::tuple containing the caller provided and defaulted parameters, to output call
-        // std::apply(output_args, hop::get_args<OL>(std::forward<Ts>(ts)...))
+        // std::apply(output_args, hop::get_args<OL>(std::forward<Args>(ts)...))
 
-        output_args(std::forward<Ts>(ts)...);
-        std::apply(output_args, hop::get_args<OL>(std::forward<Ts>(ts)...));
+        output_args(std::forward<Args>(ts)...);
+        std::apply(output_args, hop::get_args<OL>(std::forward<Args>(ts)...));
     }
 
 
@@ -300,20 +306,20 @@ namespace ns_test_6 {
         hop::ol<hop::general_defaulted_param<std::string, init_default>, hop::pack<int>>     // a defaulted std::string followed by a list of ints 
     >;
 
-    template<typename... Ts, hop::enable_test<overloads_t, Ts...> = 0 >
-    void foo(Ts&& ... ts) {
-        using OL = hop::enable_t<overloads_t, Ts...>;
+    template<typename... Args, hop::enable_t<overloads_t, Args...>* = nullptr >
+    void foo(Args&& ... ts) {
+        using OL = hop::enable_t<overloads_t, Args...>;
 
         // Attention: 
         // output_args(ts...)
         // will only output the caller provided arguments.
         // to get the parameters with defaulted parameters call
-        // hop::get_args<OL>(std::forward<Ts>(ts)...)
+        // hop::get_args<OL>(std::forward<Args>(ts)...)
         // which returns a std::tuple containing the caller provided and defaulted parameters, to output call
-        // std::apply(output_args, hop::get_args<OL>(std::forward<Ts>(ts)...))
+        // std::apply(output_args, hop::get_args<OL>(std::forward<Args>(ts)...))
 
-        output_args(std::forward<Ts>(ts)...);
-        std::apply(output_args, hop::get_args<OL>(std::forward<Ts>(ts)...));
+        output_args(std::forward<Args>(ts)...);
+        std::apply(output_args, hop::get_args<OL>(std::forward<Args>(ts)...));
     }
 
 
@@ -332,11 +338,11 @@ namespace ns_test_7 {
         hop::ol<hop::pack<int>, hop::pack<double>>     // a list of ints followed by a list of doubles
     >;
 
-    template<typename... Ts, hop::enable_test<overloads_t, Ts...> = 0 >
-    void foo(Ts&& ... ts) {
-        using OL = hop::enable_t<overloads_t, Ts...>;
+    template<typename... Args, hop::enable_t<overloads_t, Args...>* = nullptr >
+    void foo(Args&& ... ts) {
+        using OL = hop::enable_t<overloads_t, Args...>;
 
-        output_args(std::forward<Ts>(ts)...);
+        output_args(std::forward<Args>(ts)...);
     }
 
 
@@ -366,12 +372,12 @@ namespace ns_test_8 {
         hop::ol<hop::pack<hop::tagged_ty<tag_int, int>>, hop::pack<hop::tagged_ty<tag_double, double>>>     // a list of ints followed by a list of doubles
     >;
 
-    template<typename... Ts, hop::enable_test<overloads_t, Ts...> = 0 >
-    void foo(Ts&& ... ts) {
-        using OL = hop::enable_t<overloads_t, Ts...>;
+    template<typename... Args, hop::enable_t<overloads_t, Args...>* = nullptr >
+    void foo(Args&& ... ts) {
+        using OL = hop::enable_t<overloads_t, Args...>;
 
-        auto&& int_args = hop::get_tagged_args<OL, tag_int>(std::forward<Ts>(ts)...);
-        auto&& double_args = hop::get_tagged_args<OL, tag_double>(std::forward<Ts>(ts)...);
+        auto&& int_args = hop::get_tagged_args<OL, tag_int>(std::forward<Args>(ts)...);
+        auto&& double_args = hop::get_tagged_args<OL, tag_double>(std::forward<Args>(ts)...);
         std::apply(output_args, std::forward<decltype(int_args)>(int_args));
         std::apply(output_args, std::forward<decltype(double_args)>(double_args));
 
@@ -398,11 +404,11 @@ namespace ns_test_9 {
         hop::ol<hop::pack<hop::fwd>>     // a list of forwarding references
     >;
 
-    template<typename... Ts, hop::enable_test<overloads_t, Ts...> = 0 >
-    void foo(Ts&& ... ts) {
-        using OL = hop::enable_t<overloads_t, Ts...>;
+    template<typename... Args, hop::enable_t<overloads_t, Args...>* = nullptr >
+    void foo(Args&& ... ts) {
+        using OL = hop::enable_t<overloads_t, Args...>;
 
-        output_args(std::forward<Ts>(ts)...);
+        output_args(std::forward<Args>(ts)...);
     }
 
 
@@ -419,11 +425,11 @@ namespace ns_test_10 {
         hop::ol<hop::fwd_if_q<mp_bind<std::is_same, _1, int>>>     // an int (no conversion to int)
     >;
 
-    template<typename... Ts, hop::enable_test<overloads_t, Ts...> = 0 >
-    void foo(Ts&& ... ts) {
-        using OL = hop::enable_t<overloads_t, Ts...>;
+    template<typename... Args, hop::enable_t<overloads_t, Args...>* = nullptr >
+    void foo(Args&& ... ts) {
+        using OL = hop::enable_t<overloads_t, Args...>;
 
-        output_args(std::forward<Ts>(ts)...);
+        output_args(std::forward<Args>(ts)...);
     }
 
 
@@ -445,11 +451,11 @@ namespace ns_test_11 {
         hop::ol_if<at_least_4_byte, int, int>     // an int (no conversion to int)
     >;
 
-    template<typename... Ts, hop::enable_test<overloads_t, Ts...> = 0 >
-    void foo(Ts&& ... ts) {
-        using OL = hop::enable_t<overloads_t, Ts...>;
+    template<typename... Args, hop::enable_t<overloads_t, Args...>* = nullptr >
+    void foo(Args&& ... ts) {
+        using OL = hop::enable_t<overloads_t, Args...>;
 
-        output_args(std::forward<Ts>(ts)...);
+        output_args(std::forward<Args>(ts)...);
     }
 
 
@@ -476,27 +482,27 @@ namespace ns_test_12 {
         hop::ol<int, hop::cpp_defaulted_param<hop::tagged_ty<tag_defaulted_string, std::string>, init_hallo >, hop::cpp_defaulted_param<hop::tagged_ty<tag_defaulted_double, double> >>
     >;
 
-    template<typename... Ts, hop::enable_test<overloads_t, Ts...> = 0 >
-    void foo(Ts&& ... ts) {
-        using OL = hop::enable_t<overloads_t, Ts...>;
+    template<typename... Args, hop::enable_t<overloads_t, Args...>* = nullptr >
+    void foo(Args&& ... ts) {
+        using OL = hop::enable_t<overloads_t, Args...>;
 
         os << "get_tagged_arg_or:" << std::endl;
-        auto defaulted_param_0 = hop::get_tagged_arg_or<OL, tag_defaulted_string>(-1, std::forward<Ts>(ts)...);
-        auto defaulted_param_1 = hop::get_tagged_arg_or<OL, tag_defaulted_double>(-1, std::forward<Ts>(ts)...);
+        auto defaulted_param_0 = hop::get_tagged_arg_or<OL, tag_defaulted_string>(-1, std::forward<Args>(ts)...);
+        auto defaulted_param_1 = hop::get_tagged_arg_or<OL, tag_defaulted_double>(-1, std::forward<Args>(ts)...);
         std::apply(output_args, std::make_tuple(defaulted_param_0, defaulted_param_1));
 
         os << "get_indexed_defaulted:" << std::endl;
         if constexpr (hop::defaults_specified<OL>::value == 0) {
-            auto defaulted_param_0 = hop::get_indexed_defaulted<OL, 0>(std::forward<Ts>(ts)...);
-            auto defaulted_param_1 = hop::get_indexed_defaulted<OL, 1>(std::forward<Ts>(ts)...);
+            auto defaulted_param_0 = hop::get_indexed_defaulted<OL, 0>(std::forward<Args>(ts)...);
+            auto defaulted_param_1 = hop::get_indexed_defaulted<OL, 1>(std::forward<Args>(ts)...);
             std::apply(output_args, std::make_tuple(defaulted_param_0, defaulted_param_1));
         } else if constexpr (hop::defaults_specified<OL>::value == 1) {
-            auto defaulted_param_0 = hop::get_indexed_defaulted<OL, 0>(std::forward<Ts>(ts)...);
-            auto defaulted_param_1 = hop::get_indexed_defaulted<OL, 1>(std::forward<Ts>(ts)...);
+            auto defaulted_param_0 = hop::get_indexed_defaulted<OL, 0>(std::forward<Args>(ts)...);
+            auto defaulted_param_1 = hop::get_indexed_defaulted<OL, 1>(std::forward<Args>(ts)...);
             std::apply(output_args, std::make_tuple(defaulted_param_0, defaulted_param_1));
         } else if constexpr (hop::defaults_specified<OL>::value == 2) {
-            auto defaulted_param_0 = hop::get_indexed_defaulted<OL, 0>(std::forward<Ts>(ts)...);
-            auto defaulted_param_1 = hop::get_indexed_defaulted<OL, 1>(std::forward<Ts>(ts)...);
+            auto defaulted_param_0 = hop::get_indexed_defaulted<OL, 0>(std::forward<Args>(ts)...);
+            auto defaulted_param_1 = hop::get_indexed_defaulted<OL, 1>(std::forward<Args>(ts)...);
             std::apply(output_args, std::make_tuple(defaulted_param_0, defaulted_param_1));
         } else {
             static_assert(hop::dependent_false<OL>::value, "Ooops!");
@@ -520,19 +526,19 @@ namespace ns_test_13 {
         , hop::ol<hop::pack<std::string>>   // index 2
     >;
 
-    template<typename... Ts, hop::enable_test<overloads_t, Ts...> = 0 >
-    void foo(Ts&& ... ts) {
-        using OL = hop::enable_t<overloads_t, Ts...>;
+    template<typename... Args, hop::enable_t<overloads_t, Args...>* = nullptr >
+    void foo(Args&& ... ts) {
+        using OL = hop::enable_t<overloads_t, Args...>;
 
         if constexpr (hop::index<OL>::value == 0) {
             os << "overload: (long, long)" << std::endl;
-            output_args(std::forward<Ts>(ts)...);
+            output_args(std::forward<Args>(ts)...);
         } else if constexpr (hop::index<OL>::value == 1) {
             os << "overload: (double, double)" << std::endl;
-            output_args(std::forward<Ts>(ts)...);
+            output_args(std::forward<Args>(ts)...);
         } else if constexpr (hop::index<OL>::value == 2) {
             os << "overload: (std::string...)" << std::endl;
-            output_args(std::forward<Ts>(ts)...);
+            output_args(std::forward<Args>(ts)...);
         } else {
             static_assert(hop::dependent_false<OL>::value, "Ooops!");
         }
@@ -562,19 +568,19 @@ namespace ns_test_14 {
         , hop::tagged_ol<tag_strings, hop::pack<std::string>>   // index 2
     >;
 
-    template<typename... Ts, hop::enable_test<overloads_t, Ts...> = 0 >
-    void foo(Ts&& ... ts) {
-        using OL = hop::enable_t<overloads_t, Ts...>;
+    template<typename... Args, hop::enable_t<overloads_t, Args...>* = nullptr >
+    void foo(Args&& ... ts) {
+        using OL = hop::enable_t<overloads_t, Args...>;
 
         if constexpr (hop::has_tag_v<OL, tag_longs>) {
             os << "overload: (long, long)" << std::endl;
-            output_args(std::forward<Ts>(ts)...);
+            output_args(std::forward<Args>(ts)...);
         } else if constexpr (hop::has_tag_v<OL, tag_doubles>) {
             os << "overload: (double, double)" << std::endl;
-            output_args(std::forward<Ts>(ts)...);
+            output_args(std::forward<Args>(ts)...);
         } else if constexpr (hop::has_tag_v<OL, tag_strings>) {
             os << "overload: (std::string...)" << std::endl;
-            output_args(std::forward<Ts>(ts)...);
+            output_args(std::forward<Args>(ts)...);
         } else {
             static_assert(hop::dependent_false<OL>::value, "Ooops!");
         }
@@ -604,21 +610,21 @@ namespace ns_test_15 {
         , hop::ol<int, int, std::string>
     >;
 
-    template<typename... Ts, hop::enable_test<overloads_t, Ts...> = 0 >
-    void foo(Ts&& ... ts) {
-        using OL = hop::enable_t<overloads_t, Ts...>;
+    template<typename... Args, hop::enable_t<overloads_t, Args...>* = nullptr >
+    void foo(Args&& ... ts) {
+        using OL = hop::enable_t<overloads_t, Args...>;
 
-        std::apply(output_args, hop::get_args<OL>(std::forward<Ts>(ts)...));
+        std::apply(output_args, hop::get_args<OL>(std::forward<Args>(ts)...));
 
         // hop::get_tagged_arg_or returns the specified tagged-parameter (or its default-value), if there is no parameter with the specified tag, then the 'or' value is returned
-        auto&& long_arg = hop::get_tagged_arg_or<OL, tag_long_arg>(42.0, std::forward<Ts>(ts)...);
+        auto&& long_arg = hop::get_tagged_arg_or<OL, tag_long_arg>(42.0, std::forward<Args>(ts)...);
         output_args(std::forward<decltype(long_arg)>(long_arg));
     }
 
     class foo_class {
     public:
-        template<typename... Ts, hop::enable_test<overloads_t, Ts...> = 0 >
-        foo_class(Ts&& ... ts) {}
+        template<typename... Args, hop::enable_t<overloads_t, Args...>* = nullptr >
+        foo_class(Args&& ... ts) {}
     };
 
     void test() {
@@ -653,16 +659,16 @@ namespace ns_test_16 {
     public:
 
 
-        template<typename... Ts, hop::enable_test<overloads, Ts...> = 0 >
-        void foo(Ts&& ... ts) {
-            using OL = hop::enable_t<overloads, Ts...>;
+        template<typename... Args, hop::enable_t<overloads, Args...>* = nullptr >
+        void foo(Args&& ... ts) {
+            using OL = hop::enable_t<overloads, Args...>;
 
             if constexpr (hop::has_tag_v<OL, tag_ints>) {
                 os << "overload: base::foo(int, ...)" << std::endl;
-                output_args(std::forward<Ts>(ts)...);
+                output_args(std::forward<Args>(ts)...);
             } else if constexpr (hop::has_tag_v<OL, tag_doubles>) {
                 os << "overload: base::foo(double, ...)" << std::endl;
-                output_args(std::forward<Ts>(ts)...);
+                output_args(std::forward<Args>(ts)...);
             }
         }
     };
@@ -679,18 +685,18 @@ namespace ns_test_16 {
             hop::tagged_ol<tag_floats, hop::non_empty_pack<float>>
         >;
 
-        template<typename... Ts, hop::enable_test<ext_overloads, Ts...> = 0 >
-        void foo(Ts&& ... ts) {
-            using OL = hop::enable_t<ext_overloads, Ts...>;
+        template<typename... Args, hop::enable_t<ext_overloads, Args...>* = nullptr >
+        void foo(Args&& ... ts) {
+            using OL = hop::enable_t<ext_overloads, Args...>;
 
             if constexpr (hop::is_from_base_v<OL>) {
-                base::foo(std::forward<Ts>(ts)...);
+                base::foo(std::forward<Args>(ts)...);
             } else if constexpr (hop::has_tag_v<OL, tag_strings>) {
                 os << "overload: derived::foo(std::string, ...)" << std::endl;
-                output_args(std::forward<Ts>(ts)...);
+                output_args(std::forward<Args>(ts)...);
             } else if constexpr (hop::has_tag_v<OL, tag_floats>) {
                 os << "overload: derived::foo(float, ...)" << std::endl;
-                output_args(std::forward<Ts>(ts)...);
+                output_args(std::forward<Args>(ts)...);
             }
         }
     };
@@ -740,25 +746,25 @@ namespace ns_test_17 {
         >;
 
 
-        template<typename... Ts, hop::enable_test<overloads_t, Ts...> = 0 >
-        foo_class(Ts&& ... ts)
+        template<typename... Args, hop::enable_t<overloads_t, Args...>* = nullptr >
+        foo_class(Args&& ... ts)
             // delegate constructor using tag-dispatching
-            : foo_class(hop::get_tag_type<hop::enable_t<overloads_t, Ts...>>{}, std::forward<Ts>(ts)...) {
-            using OL = hop::enable_t<overloads_t, Ts...>;
+            : foo_class(hop::get_tag_type<hop::enable_t<overloads_t, Args...>>{}, std::forward<Args>(ts)...) {
+            using OL = hop::enable_t<overloads_t, Args...>;
 
-            output_args(std::forward<Ts>(ts)...);
+            output_args(std::forward<Args>(ts)...);
         }
 
     private:
         // helper contructor to create base_class without arg
-        template<typename... Ts, hop::enable_test<overloads_t, Ts...> = 0 >
-        foo_class(tag_ints, Ts&& ... ts)
+        template<typename... Args, hop::enable_t<overloads_t, Args...>* = nullptr >
+        foo_class(tag_ints, Args&& ... ts)
             : base_class{} {}
 
         // helper contructor to create base_class with string arg
-        template<typename... Ts, hop::enable_test<overloads_t, Ts...> = 0 >
-        foo_class(tag_string, Ts&& ... ts)
-            : base_class{ hop::get_arg_at<0>(std::forward<Ts>(ts)...) } {}
+        template<typename... Args, hop::enable_t<overloads_t, Args...>* = nullptr >
+        foo_class(tag_string, Args&& ... ts)
+            : base_class{ hop::get_arg_at<0>(std::forward<Args>(ts)...) } {}
     };
 
     void test() {
@@ -785,12 +791,12 @@ namespace ns_test_18 {
         hop::tagged_ol<tag_map_set, hop::deduce<map_alias>, hop::deduce<set_alias>>
     >;
 
-    template<typename... Ts, hop::enable_test<overloads_t, Ts...> = 0 >
-    void foo(Ts&& ... ts) {
-        using OL = hop::enable_t<overloads_t, Ts...>;
+    template<typename... Args, hop::enable_t<overloads_t, Args...>* = nullptr >
+    void foo(Args&& ... ts) {
+        using OL = hop::enable_t<overloads_t, Args...>;
 
         if constexpr (hop::has_tag_v<OL, tag_map_set>) {
-            output_args(std::forward<Ts>(ts)...);
+            output_args(std::forward<Args>(ts)...);
         }
     }
 
@@ -829,19 +835,19 @@ namespace ns_test_19 {
         , hop::tagged_ol<tag_list_alloc, hop::deduce_local<list_alloc_alias>>
     >;
 
-    template<typename... Ts, hop::enable_test<overloads_t, Ts...> = 0 >
-    void foo(Ts&& ... ts) {
-        using OL = hop::enable_t<overloads_t, Ts...>;
+    template<typename... Args, hop::enable_t<overloads_t, Args...>* = nullptr >
+    void foo(Args&& ... ts) {
+        using OL = hop::enable_t<overloads_t, Args...>;
 
         if constexpr (hop::has_tag_v<OL, tag_vector>) {
             os << "deduced types\n";
             print_deduced<OL>(std::make_index_sequence<sizeof...(ts)>{});
 
-            output_args(std::forward<Ts>(ts)...);
+            output_args(std::forward<Args>(ts)...);
         } else if constexpr (hop::has_tag_v<OL, tag_list_alloc>) {
             using T = hop::deduced_local_types<OL, 0>;
             os << typeid(T).name() << std::endl;
-            output_args(std::forward<Ts>(ts)...);
+            output_args(std::forward<Args>(ts)...);
         }
     }
 
@@ -874,9 +880,9 @@ namespace ns_test_20 {
 
     // adapt overload-set 'qux'
     struct adapt_qux {
-        template<class... Ts>
-        static decltype(qux(std::declval<Ts>()...)) forward(Ts&&... ts) {
-            return qux(std::forward<Ts>(ts)...);
+        template<class... Args>
+        static decltype(qux(std::declval<Args>()...)) forward(Args&&... ts) {
+            return qux(std::forward<Args>(ts)...);
         }
     };
 
@@ -885,11 +891,11 @@ namespace ns_test_20 {
         , hop::adapted<adapt_qux>
     >;
 
-    template<typename... Ts, hop::enable_test<overloads_t, Ts...> = 0 >
-    void foo(Ts&& ... ts) {
-        using OL = hop::enable_t<overloads_t, Ts...>;
+    template<typename... Args, hop::enable_t<overloads_t, Args...>* = nullptr >
+    void foo(Args&& ... ts) {
+        using OL = hop::enable_t<overloads_t, Args...>;
         if constexpr (hop::is_adapted_v<OL>) {
-            return hop::forward_adapted<OL>(std::forward<Ts>(ts)...);
+            return hop::forward_adapted<OL>(std::forward<Args>(ts)...);
         } else {
             using t = boost::mp11::mp_first<OL>;
 
@@ -916,11 +922,11 @@ namespace ns_test_21 {
         , hop::ol<hop::pack<hop::seq<std::string, hop::alt<int, bool, double, std::string>>>>
     >;
 
-    template<typename... Ts, hop::enable_test<overloads_t, Ts...> = 0 >
-    void foo(Ts&& ... ts) {
-        using OL = hop::enable_t<overloads_t, Ts...>;
+    template<typename... Args, hop::enable_t<overloads_t, Args...>* = nullptr >
+    void foo(Args&& ... ts) {
+        using OL = hop::enable_t<overloads_t, Args...>;
 
-        output_args(std::forward<Ts>(ts)...);
+        output_args(std::forward<Args>(ts)...);
     }
 
 
@@ -951,17 +957,17 @@ namespace ns_test_22 {
         hop::tagged_ol<tag_doubles, int, hop::non_empty_pack<double>>
     >;
 
-    template<typename... Ts,
-        hop::match_tag_t<overloads, tag_ints, Ts...> = 0
+    template<typename... Args,
+        hop::match_tag_t<overloads, tag_ints, Args...> = 0
     >
-        void foo(Ts&& ... ts) {
+        void foo(Args&& ... ts) {
         os << "ints overload called: " << std::endl;
     }
 
-    template<typename... Ts,
-        hop::match_tag_t<overloads, tag_doubles, Ts...> = 0
+    template<typename... Args,
+        hop::match_tag_t<overloads, tag_doubles, Args...> = 0
     >
-        void foo(Ts&& ... ts) {
+        void foo(Args&& ... ts) {
         os << "doubles overload called: " << std::endl;
     }
 
