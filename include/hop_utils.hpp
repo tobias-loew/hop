@@ -27,7 +27,7 @@ namespace hop {
 
         // print out simple values, annotate type
         template<typename Arg>
-        inline constexpr std::string annotate_type(Arg&& arg) {
+        inline std::string annotate_type(Arg&& arg) {
             return std::string(typeid(arg).name())
                 + (std::is_const_v<std::remove_reference_t<Arg>> ? " const" : "")
                 + (std::is_rvalue_reference_v<Arg> ? "&&" : std::is_lvalue_reference_v<Arg> ? "&" : "");
@@ -36,7 +36,7 @@ namespace hop {
 
         // print out simple values, annotate type
         template<typename Arg>
-        inline constexpr std::string to_string_annotate_type(Arg&& arg) {
+        inline std::string to_string_annotate_type(Arg&& arg) {
             return aux::to_string(arg) + ':' + annotate_type(std::forward<Arg>(arg));
         }
     }
