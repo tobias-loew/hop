@@ -23,6 +23,7 @@ namespace hop {
     namespace utils {
         namespace aux {
             using std::to_string;
+            std::string to_string(std::string s) { return s; }
         }
 
         // print out simple values, annotate type
