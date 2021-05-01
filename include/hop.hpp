@@ -272,6 +272,40 @@ namespace hop {
             using deduced = mp_second<decltype(test<Pattern_>(std::declval<T>()))>;
         };
 
+
+        template<class GlobalDeductionBindings, template<class...> class Pattern_>
+        struct deducer_global_and_local {
+
+            // here we really would like to write the following test function
+            // but since Pattern_ may be an alias template instantiating it with a pack is not allowed
+            // template<template<class...> class Pattern, class... T>
+            // static mp_list<std::true_type, mp_list<T...>> test(Pattern<T...>);
+
+#define HOP_MACRO_LOCAL_DEDUCER_TEST(z, n, data)                                                                                \
+            template<template<class...> class Pattern BOOST_PP_ENUM_TRAILING_PARAMS(n, class T)>                                \
+            static mp_list<std::true_type, mp_list<BOOST_PP_ENUM_PARAMS(n, T)>> test(Pattern<BOOST_PP_ENUM_PARAMS(n, T)>);
+
+            // overloads to deduce 1 - 10 template types
+            BOOST_PP_REPEAT_FROM_TO(1, HOP_MAX_DEDUCIBLE_TYPES_END, HOP_MACRO_LOCAL_DEDUCER_TEST, _)
+
+#undef HOP_MACRO_LOCAL_DEDUCER_TEST
+
+                struct no_match;
+            template<template<class...> class Pattern>
+            static mp_list<std::false_type, mp_list<>> test(...);
+
+            template<class T>
+            using fn = mp_first<decltype(test<Pattern_>(std::declval<T>()))>;
+
+            template<class T>
+            using deduced = mp_second<decltype(test<Pattern_>(std::declval<T>()))>;
+
+            using global_deduction_bindings_type = GlobalDeductionBindings;
+        };
+
+
+
+// global deduction
         template<int arity, template<class...> class Pattern>
         struct pattern_helper;
 
@@ -289,7 +323,7 @@ namespace hop {
 
             template<template<class...> class Pattern>
         struct deduction_pattern {
-            // this is for perfect forwarding of a single argument; deduction is done elsewhere
+            // this is for perfect forwarding of a single argument; deduction is done in deducer_t
             template<class T>
             using fn = T&&;
 
@@ -328,9 +362,13 @@ namespace hop {
         struct deducer_t {
 
             // here we really would like to write the following test function
-            // but since Pattern_ may be an alias template instantiating it with a pack is not allowed
-                       // template<template<class...> class... Pattern, class... T>
-                        // static mp_list<std::true_type, mp_list<T...>> test(Pattern<T...>...);
+            /*
+             
+            template<template<class...> class... Pattern, class... T>
+            static mp_list<std::true_type, mp_list<T...>> test(Pattern<T...>...);
+            
+            */
+            // but since Pattern may be an alias template instantiating it with a pack is not allowed
 
             // overloads to deduce 0 - 10 template types
             //template<template<class...> class... Pattern, class... _Tys>
@@ -384,6 +422,17 @@ namespace hop {
 
     template<template<class...> class Pattern>
     using deduce = tmpl_q< impl::deduction_pattern<Pattern>>;
+
+
+    template<size_t type_index_, class Tag>
+    struct global_deduction_binding {
+        static constexpr size_t type_index{ type_index_ };
+        using tag_type = Tag;
+    };
+
+    template<class GlobalDeductionBindings, template<class...> class Pattern>
+    using deduce_global_and_local = fwd_if_q<impl::deducer_global_and_local<GlobalDeductionBindings, Pattern>>;
+    
 
     namespace impl {
         template<auto f>
@@ -669,6 +718,89 @@ namespace hop {
         };
 
 
+
+
+
+
+        
+        template<class _ActualTy, class _FormalTy>
+        struct global_and_local_deduction_get_global_deduced_types {
+            // empty by default, i.e. no further constraints
+            using type = mp_list<>;
+        };
+
+
+        template<class _ActualTy, class GlobalDeductionBindings, template<class...> class Pattern>
+        struct global_and_local_deduction_get_global_deduced_types<_ActualTy, tmpl_q<impl::if_test <impl::deducer_global_and_local<GlobalDeductionBindings, Pattern>>>> {
+            // create list of <tag, deduced-type> 2-element-lists
+
+
+            using deduced_type_list = typename impl::deducer_global_and_local<GlobalDeductionBindings, Pattern>::template deduced<_ActualTy>;
+
+            struct get_deduced_types {
+                template<class T>
+                using fn = mp_list<
+                    typename T::tag_type,                       // tag
+                    mp_at_c<deduced_type_list, T::type_index>   // get deduced type by index
+                >;
+            };
+
+
+            using type =
+                mp_transform_q<
+                get_deduced_types,
+                GlobalDeductionBindings
+                >;
+
+        };
+
+
+        template<class _ActualTyList, class _FormalTyList>
+        struct global_and_local_deduction_helper;
+
+        template<class... _ActualTys, class... _FormalTys>
+        struct global_and_local_deduction_helper<mp_list<_ActualTys...>, mp_list<_FormalTys...>> {
+
+
+            using global_deduced_type_lists = mp_list<typename global_and_local_deduction_get_global_deduced_types<_ActualTys, _FormalTys>::type...>;
+            using global_deduced_types = mp_flatten<global_deduced_type_lists>;
+
+            // turn global_deduced_types into map (tag -> {deduced-type}), finally check that all {deduced-type} are the same !
+
+            struct tag_inconsistent;
+
+            template<class _T1>
+            struct consistency_check {
+                template<class _Tag, class _T2>
+                using fn = mp_if_c<
+                    (!std::is_same_v<_T1, _T2>) || std::is_same_v<_T1, tag_inconsistent> || std::is_same_v<_T2, tag_inconsistent>,
+                    tag_inconsistent,
+                    _T1
+                >;
+            };
+
+
+            template<class _Map, class _Global_Deduced_Type>
+            using add_to_map = mp_map_update_q<_Map, _Global_Deduced_Type, consistency_check<mp_second<_Global_Deduced_Type>>>;
+
+
+            // fold list to map and check if types with same tag are the same
+            using map_type = mp_fold<global_deduced_types, mp_list<>, add_to_map>;
+
+
+            template<class _MapElement>
+            struct contains_tag_inconsistent : mp_same< mp_second<_MapElement>, tag_inconsistent> {};
+
+            // finally check if there is any 'tag_inconsistent' in the map
+            static constexpr bool value =
+                mp_none_of<
+                map_type,
+                contains_tag_inconsistent
+                >::value;
+        };
+
+
+
         //////////////////////////////////////////////////////////////////////////////////////////////////
         // core template that generates the call-operator to test
         template <size_t _Idx, class _ExpandedTypes, class _ExpectedTypes, class _DefaultedTypes, class _Info, class _If, class _Expansion>
@@ -687,6 +819,8 @@ namespace hop {
                 mp_invoke_q<_If, T...>::value
                 &&
                 deduction_helper<mp_list<T...>, expanded_types>::value
+                &&
+                global_and_local_deduction_helper<mp_list<T...>, expanded_types>::value
                 , int* > = nullptr
             >
                 constexpr mp_list<
@@ -694,7 +828,7 @@ namespace hop {
                 std::integral_constant<size_t, _Idx>,                               //static constexpr size_t overload_index = 1;
                 expected_types,                                                     //static constexpr size_t expected_parameter_overload_type_index = 2;        // the type-list of the selected overload WITH default-params
                 defaulted_types,                                                    //static constexpr size_t default_info_type_index = 3;        // the original secification of the selected overload with default-info
-                expanded_types,                                                     //static constexpr size_t actual_parameter_overload_type_index = 4;     // the type-list of the selected overload
+                expanded_types,                                                     //static constexpr size_t formal_parameter_overload_type_index = 4;     // the type-list of the selected overload
                 mp_list<T...>,                                                      //static constexpr size_t deduced_local_parameter_overload_type_index = 5;     // the local deduced types
                 typename deduction_helper<mp_list<T...>, expanded_types>::deduced_t,//static constexpr size_t deduced_parameter_overload_type_index = 6;     // the (global) deduced types
                 _Expansion                                                          //static constexpr size_t expansion_type_index = 7;     // type holding the inductive expansion of the types
@@ -1222,7 +1356,7 @@ namespace hop {
     static constexpr size_t overload_index = 1;
     static constexpr size_t expected_parameter_overload_type_index = 2;        // the type-list of the selected overload WITH default-params
     static constexpr size_t default_info_type_index = 3;        // the original secification of the selected overload with default-info
-    static constexpr size_t actual_parameter_overload_type_index = 4;     // the type-list of the selected overload
+    static constexpr size_t formal_parameter_overload_type_index = 4;     // the type-list of the selected overload
     static constexpr size_t deduced_local_parameter_overload_type_index = 5;     // the local deduced types
     static constexpr size_t deduced_parameter_overload_type_index = 6;     // the (global) deduced types
     static constexpr size_t expansion_type_index = 7;     // type holding the inductive expansion of the types
@@ -1270,7 +1404,7 @@ namespace hop {
         >;
 
     template<class _Overload>
-    using actual_parameter_overload_type = mp_at_c<_Overload, actual_parameter_overload_type_index>;
+    using formal_parameter_overload_type = mp_at_c<_Overload, formal_parameter_overload_type_index>;
 
     template<class _Overload>
     using expected_parameter_overload_type = mp_at_c<_Overload, expected_parameter_overload_type_index>;
@@ -1487,7 +1621,7 @@ namespace hop {
                     return get_args_if_helper<_Overload, _If, index_specified, index_expected + 1>(std::forward<T>(t), std::forward<Ts>(ts)...);
                 }
             } else {
-                if constexpr (_If::template fn<mp_at_c<actual_parameter_overload_type<_Overload>, index_specified>>::value) {
+                if constexpr (_If::template fn<mp_at_c<formal_parameter_overload_type<_Overload>, index_specified>>::value) {
                     return std::tuple_cat(std::forward_as_tuple(std::forward<T>(t)), get_args_if_helper<_Overload, _If, index_specified + 1, index_expected + 1>(std::forward<Ts>(ts)...));
                 } else {
                     return get_args_if_helper<_Overload, _If, index_specified + 1, index_expected + 1>(std::forward<Ts>(ts)...);
@@ -1566,7 +1700,7 @@ namespace hop {
 
     template<class _Overload, size_t index>
     using deduced_local_types =
-        typename impl::get_tmpl<mp_at_c<actual_parameter_overload_type< _Overload>, index>>::type::_if::template deduced<deduced_local<_Overload, index>>;
+        typename impl::get_tmpl<mp_at_c<formal_parameter_overload_type< _Overload>, index>>::type::_if::template deduced<deduced_local<_Overload, index>>;
 
     template<class _Overload>
     using deduced_types = deduced_parameter_overload_type<_Overload>;
