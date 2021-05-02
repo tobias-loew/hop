@@ -1766,8 +1766,11 @@ namespace hop {
 		using has = std::enable_if_t<ol_has_tag_v<Tag, Overloads, Ts...>, int>;
 	};
 
-	template<class Overloads, class Tag, class... Ts>
-	using match_tag_t = typename match_tag<Overloads, Ts...>::template has<Tag>;
+    template<class Overloads, class Tag, class... Ts>
+    using match_tag_t = typename match_tag<Overloads, Ts...>::template has<Tag>;
+
+    template<class Overload, class Tag>
+    using ol_matches_tag_t = std::enable_if_t<has_tag_v<Overload, Tag>, int>;
 
 
 
