@@ -1033,6 +1033,54 @@ namespace ns_test_23 {
     }
 }
 
+
+
+namespace ns_test_24 {
+    // global & local template type argument deduction
+
+    using namespace boost::mp11;
+
+
+    // T1 is bound with hop::global_deduction_binding, thus all deduced T1 have to be the same
+    template<class T1, class T2>
+    using map_alias = std::map<T1, T2>const&;
+
+
+    struct tag_map;
+    struct tag_map_key_type;
+
+
+    using overloads_t = hop::ol_list <
+        hop::tagged_ol<tag_map,
+        hop::pack<hop::deduce_mixed<
+        // list, binding index from type-deduction-alias to tag-type
+        // for each tag-type: all deduced types with that index have to be the same!
+        mp_list<hop::global_deduction_binding<0, tag_map_key_type>>,
+        map_alias>>>
+        >;
+
+
+    template<typename... Args, hop::enable_t<overloads_t, Args...>* = nullptr >
+    void foo(Args&& ... args) {
+        using OL = hop::enable_t<overloads_t, Args...>;
+
+        if constexpr (hop::has_tag_v<OL, tag_map>) {
+            output_args(std::forward<Args>(args)...);
+        }
+    }
+
+
+    void test() {
+        std::map<std::string, int> map_1;
+        std::map<std::string, std::string> map_2;
+        std::map<std::string, std::vector<double>> map_3;
+        foo(map_1, map_2, map_3);
+
+        std::map<int, int> map_4;
+        // foo(map_1, map_4);  // error
+    }
+}
+
 int main() {
 
 #define CALL_TEST(n)    \
@@ -1062,6 +1110,7 @@ int main() {
     CALL_TEST(21);
     CALL_TEST(22);
     CALL_TEST(23);
+    CALL_TEST(24);
 
 }
 
