@@ -274,7 +274,7 @@ namespace hop {
 
 
         template<class GlobalDeductionBindings, template<class...> class Pattern_>
-        struct deducer_global_and_local {
+        struct deducer_mixed {
 
             // here we really would like to write the following test function
             // but since Pattern_ may be an alias template instantiating it with a pack is not allowed
@@ -431,7 +431,7 @@ namespace hop {
     };
 
     template<class GlobalDeductionBindings, template<class...> class Pattern>
-    using deduce_global_and_local = fwd_if_q<impl::deducer_global_and_local<GlobalDeductionBindings, Pattern>>;
+    using deduce_mixed = fwd_if_q<impl::deducer_mixed<GlobalDeductionBindings, Pattern>>;
     
 
     namespace impl {
@@ -724,18 +724,18 @@ namespace hop {
 
         
         template<class _ActualTy, class _FormalTy>
-        struct global_and_local_deduction_get_global_deduced_types {
+        struct mixed_deduction_get_global_deduced_types {
             // empty by default, i.e. no further constraints
             using type = mp_list<>;
         };
 
 
         template<class _ActualTy, class GlobalDeductionBindings, template<class...> class Pattern>
-        struct global_and_local_deduction_get_global_deduced_types<_ActualTy, tmpl_q<impl::if_test <impl::deducer_global_and_local<GlobalDeductionBindings, Pattern>>>> {
+        struct mixed_deduction_get_global_deduced_types<_ActualTy, tmpl_q<impl::if_test <impl::deducer_mixed<GlobalDeductionBindings, Pattern>>>> {
             // create list of <tag, deduced-type> 2-element-lists
 
 
-            using deduced_type_list = typename impl::deducer_global_and_local<GlobalDeductionBindings, Pattern>::template deduced<_ActualTy>;
+            using deduced_type_list = typename impl::deducer_mixed<GlobalDeductionBindings, Pattern>::template deduced<_ActualTy>;
 
             struct get_deduced_types {
                 template<class T>
@@ -756,13 +756,13 @@ namespace hop {
 
 
         template<class _ActualTyList, class _FormalTyList>
-        struct global_and_local_deduction_helper;
+        struct mixed_deduction_helper;
 
         template<class... _ActualTys, class... _FormalTys>
-        struct global_and_local_deduction_helper<mp_list<_ActualTys...>, mp_list<_FormalTys...>> {
+        struct mixed_deduction_helper<mp_list<_ActualTys...>, mp_list<_FormalTys...>> {
 
 
-            using global_deduced_type_lists = mp_list<typename global_and_local_deduction_get_global_deduced_types<_ActualTys, _FormalTys>::type...>;
+            using global_deduced_type_lists = mp_list<typename mixed_deduction_get_global_deduced_types<_ActualTys, _FormalTys>::type...>;
             using global_deduced_types = mp_flatten<global_deduced_type_lists>;
 
             // turn global_deduced_types into map (tag -> {deduced-type}), finally check that all {deduced-type} are the same !
@@ -820,7 +820,7 @@ namespace hop {
                 &&
                 deduction_helper<mp_list<T...>, expanded_types>::value
                 &&
-                global_and_local_deduction_helper<mp_list<T...>, expanded_types>::value
+                mixed_deduction_helper<mp_list<T...>, expanded_types>::value
                 , int* > = nullptr
             >
                 constexpr mp_list<

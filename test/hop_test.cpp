@@ -1005,7 +1005,7 @@ namespace ns_test_23 {
 
     using overloads_t = hop::ol_list <
         hop::tagged_ol<tag_vector, 
-            hop::pack<hop::deduce_global_and_local<
+            hop::pack<hop::deduce_mixed<
                 // list, binding index from type-deduction-alias to tag-type
                 // for each tag-type: all deduced types with that index have to be the same!
                 mp_list<hop::global_deduction_binding<0, tag_vector_value_type>>,   
