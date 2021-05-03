@@ -888,9 +888,32 @@ namespace ns_test_20 {
         }
     };
 
+
+    void bar_empty(bool but_its_ok = false) {
+        os << "a very sad function called";
+        if (but_its_ok) {
+            os << ", but it's ok";
+        } else {
+            os << ", bar is empty";
+        }
+        os << std::endl;
+    }
+
+
+    // adapt function with defaulted parameters 'bar_empty'
+    struct adapt_bar_empty {
+        template<class... Args>
+        static decltype(bar_empty(std::declval<Args>()...)) forward(Args&&... args) {
+            return bar_empty(std::forward<Args>(args)...);
+        }
+    };
+
+
     using overloads_t = hop::ol_list <
         hop::adapt<bar>
         , hop::adapted<adapt_qux>
+        ,
+        hop::adapted<adapt_bar_empty>
     >;
 
     template<typename... Args, hop::enable_t<overloads_t, Args...>* = nullptr >
@@ -911,6 +934,9 @@ namespace ns_test_20 {
     void test() {
         foo(0, "Hello");
         foo(std::vector<std::string>{}, 2, 3);
+        foo();
+        foo(false);
+        foo(true);
     }
 }
 

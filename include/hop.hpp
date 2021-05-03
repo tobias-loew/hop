@@ -108,6 +108,11 @@ namespace hop {
     template<class... T> struct dependent_false : mp_false {};
 
 
+    ///////////////////////////////////////////////////////////////////////////////////
+    //
+    // parameter-list building blocks - the grammar
+    //
+
     // template to create a repeated [min, .. , max] parameter
     static constexpr size_t infinite = std::numeric_limits<size_t>::max();
 
@@ -130,7 +135,9 @@ namespace hop {
     template<class _Tag, class _Ty>
     struct tagged_ty;
 
+
     // template to gather a parameter-list
+    // gather is not yet implemented !!!
     template<class _Tag, class _Ty>
     struct gather;
 
@@ -446,15 +453,38 @@ namespace hop {
 
         template<class T>
         struct adapter_test {
+/*
+*            // adapter_test::fn is only called inside enable_if-condition of _single_overload_helper,
+*            // so fallback option is not needed because of SFINAE
+*            // furthermore, test(...) gives wrong results for adapted functions
+*            // with all parameters defaulted and called with empty argument-list
+*            // the reason is because calling functions
+*            // test(...); 
+*            // test(int i = 0);
+*            // with zero arguments is AMBIGUOUS !!!
+* 
+*            template<class... Ts>
+*            static true_t<decltype(T::forward(std::declval<Ts>()...))> test(int, Ts&&... ts);
+* 
+* 
+*            static std::false_type test(...);
+* 
+*            template<class... Ts>
+*            using fn = decltype(test(0, std::declval<Ts>()...));
+*/
+
+            // adding leading int dummy-parameter to prevent the test(int i = 0), test(...) ambiguity
 
             template<class... Ts>
-            static true_t<decltype(T::forward(std::declval<Ts>()...))> test(Ts&&...);
+            static true_t<decltype(T::forward(std::declval<Ts>()...))> test(int, Ts&&... ts);
+            //                                                               ^ dummy-parameter
+
 
             static std::false_type test(...);
 
             template<class... Ts>
-            using fn = decltype(test(std::declval<Ts>()...));
-
+            using fn = decltype(test(0, std::declval<Ts>()...));
+            //                       ^ int dummy-argument
         };
     }
 
@@ -812,6 +842,8 @@ namespace hop {
             using expanded_types = mp_list<_ExpandedTys...>;
             using expected_types = mp_list<_ExpectedTys...>;
             using defaulted_types = mp_list<_DefaultedTys...>;
+            //using h1 = debug<_If>;
+            //using h = debug<mp_bool<mp_invoke_q<_If, int>::value>>;
 
             template<
                 class... T,
@@ -864,7 +896,9 @@ namespace hop {
 
 
         ////////////////////////////////////////////////////////////////////////////////////////////////////
+        //
         // calculation of the valid number-of-arguments
+        //
 
         struct tag_args_min;
         struct tag_args_max;
@@ -1281,12 +1315,16 @@ namespace hop {
         };
 
 
+
+        // an unmatchable type
+        struct unmatchable;
+
         // specialization to avoid compilation errors for "using ...::test" when no overload is generated
         // eventually this will result in an error, but it shall be a "no matching overload found"
         template <size_t _arg_count, size_t _Idx>
         struct _expanded_overload_set<_arg_count, _Idx, mp_list<>> {
             template<class... T, std::enable_if_t<dependent_false<T...>::value, int* > = nullptr >
-            constexpr void test() const;
+            constexpr void test(unmatchable) const;
         };
 
 
