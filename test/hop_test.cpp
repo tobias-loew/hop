@@ -21,6 +21,7 @@
 #include <list>
 #include <set>
 #include <map>
+#include <array>
 #include "..\include\hop.hpp"
 #include "..\include\hop_utils.hpp"
 
@@ -424,7 +425,7 @@ namespace ns_test_10 {
     using namespace boost::mp11;
 
     using overloads_t = hop::ol_list <
-        hop::ol<hop::fwd_if_q<mp_bind<std::is_same, _1, int>>>     // an int (no conversion to int)
+        hop::ol<hop::pack<hop::fwd_if_q<mp_bind<std::is_same, _1, int>>>>     // an int (no conversion to int)
     >;
 
     template<typename... Args, hop::enable_t<overloads_t, Args...>* = nullptr >
@@ -1106,6 +1107,77 @@ namespace ns_test_24 {
         // foo(map_1, map_4);  // error
     }
 }
+
+
+
+namespace ns_test_25 {
+    // local template type argument deduction with non-type template parameters
+
+    // for non-type template parameters, we have to rewrite the core deduction template
+    // to deduce the expected types, templates and nont-type parameters
+
+    template<template<class, size_t> class Container, class T, size_t N>
+    using array_alias = Container<T, N>const&;
+
+    // wrapper to store the returned Container template
+    template<template<class, size_t> class Container>
+    struct ContainerWrapper;
+
+    struct tag_array;
+
+
+    using namespace boost::mp11;
+
+    // look, three 'template' in a row
+    template<template<template<class, size_t> class, class, size_t> class Pattern_>
+    struct my_deducer_local {
+
+        // deduce types, templates and nont-type parameters and wrap all of them in to types
+        template<template<template<class, size_t> class, class, size_t> class Pattern, template<class, size_t> class Container, class T, size_t N>
+        static mp_list<std::true_type, mp_list<ContainerWrapper<Container>, T, std::integral_constant<size_t, N>>>
+            test(Pattern<Container, T, N>);
+
+
+        template<template<class...> class Pattern>
+        static mp_list<std::false_type, mp_list<>> test(...);
+
+        template<class T>
+        using fn = mp_first<decltype(test<Pattern_>(std::declval<T>()))>;
+
+        template<class T>
+        using deduced = mp_second<decltype(test<Pattern_>(std::declval<T>()))>;
+    };
+
+
+    template<template<template<class, size_t> class, class, size_t> class Pattern>
+    using my_deduce_local = hop::fwd_if_q<my_deducer_local<Pattern>>;
+
+
+
+    using overloads_t = hop::ol_list <
+        hop::tagged_ol<tag_array, hop::pack<my_deduce_local<array_alias>>>
+    >;
+
+    template<typename... Args, hop::enable_t<overloads_t, Args...>* = nullptr >
+    void foo(Args&& ... args) {
+        using OL = hop::enable_t<overloads_t, Args...>;
+
+        if constexpr (hop::has_tag_v<OL, tag_array>) {
+            os << "array<T,N> overload called\n";
+        }
+    }
+
+
+
+    void test() {
+        std::array<int, 5> v1;
+        std::array<double, 10> v2;
+        foo(v1, v2);
+    }
+}
+
+
+
 
 int main() {
 

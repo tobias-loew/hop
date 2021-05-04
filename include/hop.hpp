@@ -268,7 +268,6 @@ namespace hop {
 
 #undef HOP_MACRO_LOCAL_DEDUCER_TEST
 
-                struct no_match;
             template<template<class...> class Pattern>
             static mp_list<std::false_type, mp_list<>> test(...);
 
@@ -297,7 +296,6 @@ namespace hop {
 
 #undef HOP_MACRO_LOCAL_DEDUCER_TEST
 
-                struct no_match;
             template<template<class...> class Pattern>
             static mp_list<std::false_type, mp_list<>> test(...);
 
