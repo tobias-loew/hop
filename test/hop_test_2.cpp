@@ -151,29 +151,35 @@ output_args_ output_args;
 
 
 
-//namespace ns_test_9 {
-//    // forwarding reference
-//    template<typename T>
-//    concept PlainType = true;
-//
-//    using overloads_t = hop::ol_list <
-//        hop::ol<hop::pack<hop::fwd>>     // a list of forwarding references
-//        , hop::ol<hop::pack<PlainType<int>>>     // a list of forwarding references
-//    >;
-//
-//    template<typename... Ts, hop::enable_test<overloads_t, Ts...> = 0 >
-//    void foo(Ts&& ... ts) {
-//        using OL = hop::enable_t<overloads_t, Ts...>;
-//
-//        output_args(std::forward<Ts>(ts)...);
-//    }
-//
-//
-//    void test() {
-//     //   foo(1, "a text", std::wstring(L"a wide string"), 2.4);
-//        foo(1, 2);
-//    }
-//}
+namespace ns_test_9 {
+    // forwarding reference
+    template<typename T>
+    concept PlainType = true;
+
+    // forwarding reference with SFINAE condition
+    using namespace boost::mp11;
+
+    template<typename T>
+    struct concept_check : std::bool_constant<PlainType<T>>{};
+
+    using overloads_t = hop::ol_list <
+        hop::ol<hop::fwd_if_q<mp_bind<concept_check, _1>>>     // an int (no conversion to int)
+    >;
+
+    template<typename... Ts, hop::enable_t<overloads_t, Ts...>* = nullptr >
+    void foo(Ts&& ... ts) {
+        using OL = hop::enable_t<overloads_t, Ts...>;
+
+        output_args(std::forward<Ts>(ts)...);
+    }
+
+
+    void test() {
+        foo(1);
+        //foo(1L);    // error: no matching overloaded function found
+        //foo(42.0);    // error: no matching overloaded function found
+    }
+}
 
 namespace ns_test_22 {
     // using match_tag to select (kudos to Quuxplusone)
@@ -211,6 +217,40 @@ namespace ns_test_22 {
     }
 }
 
+namespace ns_test_23 {
+    // using match_tag to select (kudos to Quuxplusone)
+    using namespace hop;
+    struct tag_ints {};
+//        tagged_ol<tag_ints, n_times<int, 2>>
+
+    using overloads = ol_list <
+        tagged_ol<tag_ints, 
+
+// ambigous, when called with one argument
+seq<general_defaulted_param<int>, general_defaulted_param<int>>
+        >
+    >;
+
+    template<typename... Ts,
+        match_tag_t<overloads, tag_ints, Ts...> = 0
+    >
+        void foo(Ts&& ... ts) {
+        os << "ints overload called: " << std::endl;
+    }
+
+
+    void test() {
+      //  foo(1);
+        foo(1, 2);
+        foo(1.0, 2.0);
+        foo(1.0f, 2.0);
+        //foo("", 1.0, 2);
+        //foo(1, 2.0);
+        //foo(1, 2.0, 3.0);
+        // foo(1, 2.0, 3); // error ambigous
+    }
+}
+
 #if 0
 namespace ns_test_23 {
     // WRONG USAGE !!!
@@ -227,12 +267,12 @@ namespace ns_test_23 {
         hop::tagged_ol<tag_doubles, hop::non_empty_pack<double>>
     >;
 
-    template<typename... Ts, hop::enable_test<overloads_int, Ts...> = 0 >
+    template<typename... Ts, hop::enable_t<overloads_int, Ts...>* = nullptr >
         void foo(Ts&& ... ts) {
         os << "ints overload called: " << std::endl;
     }
 
-    template<typename... Ts, hop::enable_test<overloads_doubles, Ts...> = 0 >
+    template<typename... Ts, hop::enable_t<overloads_doubles, Ts...>* = nullptr >
         void foo(Ts&& ... ts) {
         os << "doubles overload called: " << std::endl;
     }
@@ -249,14 +289,28 @@ namespace ns_test_23 {
 }
 #endif
 
+
+//template <class... Ts,
+//    enable_if_t<
+//    (sizeof...(Ts) > 0) &&                  // at least one argument
+//    (std::is_convertible_v<Ts, A> && ...)   // all arguments convertible to A
+//    >* = nullptr >
+//    R foo(Ts&&... ts) {
+//    /*...*/
+//}
+
 int main() {
+
+
+    //std::integral_constant<size_t, Index>
 
 #define CALL_TEST(n)    \
     os << std::endl << "START TEST " #n << std::endl << std::endl;\
     ns_test_##n::test();
 
-    //    CALL_TEST(9);
+    CALL_TEST(9);
     CALL_TEST(22);
+    CALL_TEST(23);
 
 }
 

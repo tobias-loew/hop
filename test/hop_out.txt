@@ -1,0 +1,493 @@
+
+START TEST 1
+
+args:
+char const [6]: Hello
+
+args:
+char const * __ptr64: hop
+
+args:
+class std::basic_string<char,struct std::char_traits<char>,class std::allocator<char> >: world!
+
+
+START TEST 2
+
+args:
+
+args:
+int: 42
+
+args:
+int: 5
+int: 2
+int: -4
+double: 4.6
+char: c
+
+
+START TEST 3
+
+args:
+int: 1
+int: 2
+
+args:
+int: 1
+int: 2
+int: 3
+
+args:
+int: 1
+int: 2
+int: 3
+int: 4
+
+args:
+int: 1
+int: 2
+int: 3
+int: 4
+int: 5
+
+
+START TEST 4
+
+args:
+int: 42
+char const [4]: hop
+
+args:
+int: 1
+int: 2
+int: 3
+class std::basic_string<char,struct std::char_traits<char>,class std::allocator<char> >: 
+
+
+START TEST 5
+
+args:
+int: 1
+
+args:
+int: 1
+class std::basic_string<char,struct std::char_traits<char>,class std::allocator<char> >: default initialized
+class std::basic_string<wchar_t,struct std::char_traits<wchar_t>,class std::allocator<wchar_t> >: 
+
+args:
+int: 42
+char const [4]: hop
+
+args:
+int: 42
+char const [4]: hop
+class std::basic_string<wchar_t,struct std::char_traits<wchar_t>,class std::allocator<wchar_t> >: 
+
+args:
+int: 1
+int: 2
+int: 3
+class std::basic_string<char,struct std::char_traits<char>,class std::allocator<char> >: a string
+
+args:
+int: 1
+int: 2
+int: 3
+class std::basic_string<char,struct std::char_traits<char>,class std::allocator<char> >: a string
+class std::basic_string<wchar_t,struct std::char_traits<wchar_t>,class std::allocator<wchar_t> >: 
+
+args:
+int: 1
+int: 2
+int: 3
+class std::basic_string<char,struct std::char_traits<char>,class std::allocator<char> >: a string and a number
+class std::basic_string<wchar_t,struct std::char_traits<wchar_t>,class std::allocator<wchar_t> >: into the great wide open
+
+args:
+int: 1
+int: 2
+int: 3
+class std::basic_string<char,struct std::char_traits<char>,class std::allocator<char> >: a string and a number
+class std::basic_string<wchar_t,struct std::char_traits<wchar_t>,class std::allocator<wchar_t> >: into the great wide open
+
+
+START TEST 6
+
+args:
+char const [8]: no ints
+
+args:
+char const [8]: no ints
+
+args:
+int: 1
+int: 2
+int: 3
+
+args:
+class std::basic_string<char,struct std::char_traits<char>,class std::allocator<char> >: default initialized
+int: 1
+int: 2
+int: 3
+
+args:
+char const [4]: hop
+int: 42
+
+args:
+char const [4]: hop
+int: 42
+
+args:
+
+args:
+class std::basic_string<char,struct std::char_traits<char>,class std::allocator<char> >: default initialized
+
+
+START TEST 7
+
+args:
+
+args:
+int: 1
+double: 2.5
+
+
+START TEST 8
+
+args:
+int: 1
+int: 2
+short: 3
+
+args:
+double: 3.4
+float: 1
+
+int args count: 3
+double args count: 2
+args:
+int: 1
+int: 2
+int: 3
+
+args:
+double: 3.4
+
+int args count: 3
+double args count: 1
+args:
+int: 1
+int: 2
+short: 3
+
+args:
+double: 3.4
+float: 1
+
+int args count: 3
+double args count: 2
+
+START TEST 9
+
+args:
+int: 1
+char const [7]: a text
+class std::basic_string<wchar_t,struct std::char_traits<wchar_t>,class std::allocator<wchar_t> >: a wide string
+double: 2.4
+
+
+START TEST 10
+
+args:
+int: 1
+
+
+START TEST 11
+
+args:
+int: 1
+int: 2
+
+args:
+__int64: 1
+int: 2
+
+args:
+float: 4.2
+double: 2.4
+
+
+START TEST 12
+
+get_tagged_arg_or:
+args:
+class std::basic_string<char,struct std::char_traits<char>,class std::allocator<char> >: hallo defaulted world
+double: 0
+
+get_indexed_defaulted:
+args:
+class std::basic_string<char,struct std::char_traits<char>,class std::allocator<char> >: hallo defaulted world
+double: 0
+
+get_tagged_arg_or:
+args:
+char const * __ptr64: specified
+double: 0
+
+get_indexed_defaulted:
+args:
+char const * __ptr64: specified
+double: 0
+
+get_tagged_arg_or:
+args:
+char const * __ptr64: specified
+double: 42
+
+get_indexed_defaulted:
+args:
+char const * __ptr64: specified
+double: 42
+
+
+START TEST 13
+
+overload: (long, long)
+args:
+int: 1
+long: 3
+
+overload: (double, double)
+args:
+double: 1
+double: 3
+
+overload: (std::string...)
+args:
+char const [4]: one
+char const [6]: three
+
+
+START TEST 14
+
+overload: (long, long)
+args:
+int: 1
+long: 3
+
+overload: (double, double)
+args:
+double: 1
+double: 3
+
+overload: (std::string...)
+args:
+char const [4]: one
+char const [6]: three
+
+
+START TEST 15
+
+args:
+char const [5]: text
+long: 3
+
+args:
+long: 3
+
+args:
+int: 5
+double: 1
+double: 2
+
+args:
+int: 5
+
+args:
+long: 0
+double: 11
+double: 12
+
+args:
+long: 0
+
+args:
+double: 11
+double: 12
+char const [13]: another text
+
+args:
+double: 42
+
+
+START TEST 16
+
+overload: base::foo(int, ...)
+args:
+int: 42
+int: 17
+
+overload: base::foo(double, ...)
+args:
+double: -0.4
+double: 12
+
+overload: base::foo(double, ...)
+args:
+float: 1.5
+float: -0.4
+float: 12
+
+overload: base::foo(double, ...)
+args:
+double: 0.1
+float: 2.5
+
+overload: base::foo(int, ...)
+args:
+int: 42
+int: 17
+
+overload: base::foo(double, ...)
+args:
+double: -0.4
+double: 12
+
+overload: derived::foo(float, ...)
+args:
+float: 1.5
+float: -0.4
+float: 12
+
+overload: derived::foo(std::string, ...)
+args:
+char const [6]: hello
+char const [9]: extended
+char const [7]: world!
+
+
+START TEST 17
+
+args:
+int: 0
+int: 1
+int: 2
+int: 3
+
+args:
+char const [9]: a string
+double: 0.5
+double: -100000
+
+
+START TEST 18
+
+args:
+class std::map<int,class std::basic_string<char,struct std::char_traits<char>,class std::allocator<char> >,struct std::less<int>,class std::allocator<struct std::pair<int const ,class std::basic_string<char,struct std::char_traits<char>,class std::allocator<char> > > > >: {}
+class std::set<class std::basic_string<char,struct std::char_traits<char>,class std::allocator<char> >,struct std::less<class std::basic_string<char,struct std::char_traits<char>,class std::allocator<char> > >,class std::allocator<class std::basic_string<char,struct std::char_traits<char>,class std::allocator<char> > > >: <>
+
+
+START TEST 19
+
+struct boost::mp11::mp_list<int,class std::allocator<int> >
+args:
+class std::list<int,class std::allocator<int> >: ()
+
+deduced types
+struct boost::mp11::mp_list<int>
+struct boost::mp11::mp_list<double>
+struct boost::mp11::mp_list<class std::basic_string<char,struct std::char_traits<char>,class std::allocator<char> > >
+args:
+class std::vector<int,class std::allocator<int> >: []
+class std::vector<double,class std::allocator<double> >: []
+class std::vector<class std::basic_string<char,struct std::char_traits<char>,class std::allocator<char> >,class std::allocator<class std::basic_string<char,struct std::char_traits<char>,class std::allocator<char> > > >: []
+
+
+START TEST 20
+
+bar called: 
+args:
+int: 0
+class std::basic_string<char,struct std::char_traits<char>,class std::allocator<char> >: Hello
+
+qux called: 
+args:
+class std::vector<class std::basic_string<char,struct std::char_traits<char>,class std::allocator<char> >,class std::allocator<class std::basic_string<char,struct std::char_traits<char>,class std::allocator<char> > > >: []
+double: 2
+double: 3
+
+a very sad function called, bar is empty
+a very sad function called, bar is empty
+a very sad function called, but it's ok
+
+START TEST 21
+
+args:
+char const [6]: hello
+
+args:
+int: 42
+
+args:
+int: 42
+int: 1
+int: 1
+
+args:
+int: 42
+int: 1
+
+args:
+int: 42
+int: 1
+
+args:
+
+args:
+char const [2]: a
+double: 1.5
+char const [2]: b
+char const [4]: two
+char const [2]: c
+bool: 0
+
+
+START TEST 22
+
+int overload called: 
+args:
+int: 1
+int: 2
+
+int overload called: 
+args:
+double: 1
+int: 2
+
+double overload called: 
+args:
+int: 1
+double: 2
+
+double overload called: 
+args:
+int: 1
+double: 2
+double: 3
+
+
+START TEST 23
+
+args:
+class std::vector<int,class std::allocator<int> >: []
+class std::vector<int,struct ns_test_23::special_allocator>: []
+
+
+START TEST 24
+
+args:
+class std::map<class std::basic_string<char,struct std::char_traits<char>,class std::allocator<char> >,int,struct std::less<class std::basic_string<char,struct std::char_traits<char>,class std::allocator<char> > >,class std::allocator<struct std::pair<class std::basic_string<char,struct std::char_traits<char>,class std::allocator<char> > const ,int> > >: {}
+class std::map<class std::basic_string<char,struct std::char_traits<char>,class std::allocator<char> >,class std::basic_string<char,struct std::char_traits<char>,class std::allocator<char> >,struct std::less<class std::basic_string<char,struct std::char_traits<char>,class std::allocator<char> > >,class std::allocator<struct std::pair<class std::basic_string<char,struct std::char_traits<char>,class std::allocator<char> > const ,class std::basic_string<char,struct std::char_traits<char>,class std::allocator<char> > > > >: {}
+class std::map<class std::basic_string<char,struct std::char_traits<char>,class std::allocator<char> >,class std::vector<double,class std::allocator<double> >,struct std::less<class std::basic_string<char,struct std::char_traits<char>,class std::allocator<char> > >,class std::allocator<struct std::pair<class std::basic_string<char,struct std::char_traits<char>,class std::allocator<char> > const ,class std::vector<double,class std::allocator<double> > > > >: {}
+

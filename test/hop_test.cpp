@@ -1069,8 +1069,8 @@ namespace ns_test_24 {
 
 
     // T1 is bound with hop::global_deduction_binding, thus all deduced T1 have to be the same
-    template<class T1, class T2>
-    using map_alias = std::map<T1, T2>const&;
+    template<class T0, class T1>
+    using map_alias = std::map<T0, T1>const&;
 
 
     struct tag_map;
